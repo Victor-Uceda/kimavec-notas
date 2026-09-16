@@ -12,6 +12,8 @@ import { FolderSidebar } from './features/folders/FolderSidebar';
 import { FolderEmptyState } from './features/folders/FolderEmptyState';
 import { NotesBoardView } from './features/board/NotesBoardView';
 import { TodoView } from './features/tasks/TodoView';
+import { TrashModal } from './features/trash/TrashModal';
+import { HomeQuickNoteView } from './features/notes/HomeQuickNoteView';
 import { useAppStore } from './store/useAppStore';
 import { extractTasksFromMarkdown } from './utils/taskParser';
 
@@ -37,6 +39,7 @@ export default function App() {
     setActivePane,
     loadNotes,
     selectNote,
+    closeNoteTab,
     createNote,
     deleteNote,
     cleanEmptyNotes,
@@ -45,26 +48,33 @@ export default function App() {
     deleteTask,
     clearCompletedTasks,
     addManualTask,
+    persistenceError,
+    setPersistenceError,
   } = useAppStore();
 
   useEffect(() => {
     loadNotes();
   }, [loadNotes]);
 
+  const activeNotes = useMemo(() => {
+    return notes.filter((n) => !n.deletedAt);
+  }, [notes]);
+
   const activeNote = useMemo(() => {
-    return notes.find((n) => n.id === activeNoteId) || null;
-  }, [notes, activeNoteId]);
+    return activeNotes.find((n) => n.id === activeNoteId) || null;
+  }, [activeNotes, activeNoteId]);
 
   const secondaryNote = useMemo(() => {
     if (!splitView) return null;
     const targetId =
       secondaryNoteId && secondaryNoteId !== activeNote?.id
         ? secondaryNoteId
-        : openNoteIds.find((id) => id !== activeNote?.id) || notes.find((n) => n.id !== activeNote?.id)?.id;
+        : openNoteIds.find((id) => id !== activeNote?.id && activeNotes.some((n) => n.id === id)) ||
+          activeNotes.find((n) => n.id !== activeNote?.id)?.id;
 
     if (!targetId || targetId === activeNote?.id) return null;
-    return notes.find((n) => n.id === targetId) || null;
-  }, [splitView, secondaryNoteId, openNoteIds, activeNote?.id, notes]);
+    return activeNotes.find((n) => n.id === targetId) || null;
+  }, [splitView, secondaryNoteId, openNoteIds, activeNote?.id, activeNotes]);
 
   // Nota enfocada actualmente: cambia si estás en Panel 1 o Panel 2
   const focusedNote = useMemo(() => {
@@ -82,7 +92,7 @@ export default function App() {
 
   const activeFolderName = useMemo(() => {
     if (!activeFolderId) return undefined;
-    return folders.find((f) => f.id === activeFolderId)?.name;
+    return folders.find((f) => f.id === activeFolderId && !f.deletedAt)?.name;
   }, [folders, activeFolderId]);
 
   if (isLoading) {
@@ -99,11 +109,15 @@ export default function App() {
         dock={
           <Dock
             activeItem={activeNav}
-            notes={notes}
+            notes={activeNotes}
             activeNoteId={activeNote?.id || ''}
             onSelectItem={setNav}
             onSelectNote={selectNote}
-            onCreateNote={() => createNote()}
+            onCreateNote={async () => {
+              const newId = await createNote();
+              selectNote(newId);
+              setNav('notes');
+            }}
             onOpenAddModal={() => setAddModalOpen(true)}
             onDeleteNote={deleteNote}
             onCleanEmptyNotes={cleanEmptyNotes}
@@ -111,25 +125,27 @@ export default function App() {
           />
         }
         editor={
-          activeNav === 'canvas' ? (
-            <GraphCanvas onClose={() => setNav('home')} />
+          activeNav === 'home' ? (
+            <HomeQuickNoteView onOpenNotes={() => setNav('notes')} />
+          ) : activeNav === 'canvas' ? (
+            <GraphCanvas onClose={() => setNav('notes')} />
           ) : activeNav === 'board' ? (
             <NotesBoardView
               onOpenNote={(noteId) => {
                 selectNote(noteId);
-                setNav('home');
+                setNav('notes');
               }}
             />
           ) : activeNav === 'todo' ? (
             <TodoView
               onOpenNote={(noteId) => {
                 selectNote(noteId);
-                setNav('home');
+                setNav('notes');
               }}
             />
           ) : (
             <div className="flex-1 h-full flex overflow-hidden rounded-sheet shadow-sheet border border-app-border-subtle bg-white">
-              {/* Barra lateral de carpetas en vista Home (según Imagen 1) */}
+              {/* Barra lateral de carpetas en vista Notas */}
               <FolderSidebar
                 onSelectNote={selectNote}
                 activeNoteId={activeNote?.id}
@@ -158,6 +174,7 @@ export default function App() {
                           onChangeTitle={(title) => updateNote(activeNote.id, title, activeNote.content)}
                           onChangeContent={(content) => updateNote(activeNote.id, activeNote.title, content)}
                           onOpenGraph={() => setNav('canvas')}
+                          onClose={() => closeNoteTab(activeNote.id)}
                           onDeleteNote={() => {
                             if (window.confirm(`¿Eliminar la nota "${activeNote.title || 'sin título'}"?`)) {
                               deleteNote(activeNote.id);
@@ -180,6 +197,7 @@ export default function App() {
                             onChangeTitle={(title) => updateNote(secondaryNote.id, title, secondaryNote.content)}
                             onChangeContent={(content) => updateNote(secondaryNote.id, secondaryNote.title, content)}
                             onOpenGraph={() => setNav('canvas')}
+                            onClose={() => closeNoteTab(secondaryNote.id)}
                             onDeleteNote={() => {
                               if (window.confirm(`¿Eliminar la nota "${secondaryNote.title || 'sin título'}"?`)) {
                                 deleteNote(secondaryNote.id);
@@ -194,7 +212,7 @@ export default function App() {
                   <FolderEmptyState
                     folderName={activeFolderName}
                     onCreateNote={() => createNote()}
-                    onQuickNote={() => createNote()}
+                    onQuickNote={() => setNav('home')}
                   />
                 )}
               </div>
@@ -202,7 +220,7 @@ export default function App() {
           )
         }
         tasks={
-          isTaskPanelOpen && focusedNote && activeNav === 'home' ? (
+          isTaskPanelOpen && focusedNote && (activeNav === 'notes' || activeNav === 'home') ? (
             <TaskPanel
               noteTitle={focusedNote.title}
               tasks={currentTasks}
@@ -220,9 +238,24 @@ export default function App() {
       <CommandPalette />
       <SettingsModal
         isOpen={activeNav === 'settings'}
-        onClose={() => setNav('home')}
+        onClose={() => setNav('notes')}
       />
       <OpenOrCreateModal />
+      <TrashModal />
+
+      {/* Banner de error de persistencia (docs/04-code-standards.md 48.7) */}
+      {persistenceError && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-medium shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 select-none">
+          <span>⚠️ {persistenceError}</span>
+          <button
+            type="button"
+            onClick={() => setPersistenceError(null)}
+            className="underline text-[11px] text-white/80 hover:text-white transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
     </>
   );
 }

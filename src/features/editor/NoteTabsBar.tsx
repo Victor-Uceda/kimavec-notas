@@ -16,11 +16,26 @@ export const NoteTabsBar: React.FC = () => {
     toggleSplitView,
   } = useAppStore();
 
+  const activeOpenNoteIds = React.useMemo(() => {
+    return openNoteIds.filter((id) => {
+      const n = notes.find((item) => item.id === id);
+      return n && !n.deletedAt;
+    });
+  }, [openNoteIds, notes]);
+
+  const activeNotesCount = React.useMemo(() => {
+    return notes.filter((n) => !n.deletedAt).length;
+  }, [notes]);
+
+  if (activeOpenNoteIds.length <= 1 && !splitView) {
+    return null;
+  }
+
   return (
     <div className="flex items-center justify-between px-2 py-1.5 border-b border-black/[0.06] bg-white/40 backdrop-blur-md select-none">
       {/* Lista de pestañas desplazable */}
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[calc(100%-140px)]">
-        {openNoteIds.map((id) => {
+        {activeOpenNoteIds.map((id) => {
           const note = notes.find((n) => n.id === id);
           const isLeft = splitView && id === activeNoteId;
           const isRight = splitView && id === secondaryNoteId && id !== activeNoteId;
@@ -87,7 +102,7 @@ export const NoteTabsBar: React.FC = () => {
 
       {/* Acciones de ventana: Cerrar todas & Split View */}
       <div className="flex items-center gap-1 shrink-0">
-        {openNoteIds.length > 0 && (
+        {activeOpenNoteIds.length > 0 && (
           <button
             type="button"
             onClick={closeAllTabs}
@@ -100,7 +115,7 @@ export const NoteTabsBar: React.FC = () => {
         )}
 
         {/* Solo mostrar la opción de Paralelo si hay más de 1 nota abierta y disponible */}
-        {openNoteIds.length > 1 && notes.length > 1 && (
+        {activeOpenNoteIds.length > 1 && activeNotesCount > 1 && (
           <button
             type="button"
             onClick={toggleSplitView}

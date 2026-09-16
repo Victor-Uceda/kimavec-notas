@@ -1,4 +1,4 @@
-import type { Note, Folder, BoardCard } from '../../types';
+import type { Note, Folder, BoardCard, Task } from '../../types';
 
 export interface NoteRepository {
   getAll(): Promise<Note[]>;
@@ -16,6 +16,12 @@ export interface FolderRepository {
 export interface BoardCardRepository {
   getAll(): Promise<BoardCard[]>;
   save(card: BoardCard): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+export interface TaskRepository {
+  getAll(): Promise<Task[]>;
+  save(task: Task): Promise<void>;
   delete(id: string): Promise<void>;
 }
 
@@ -274,3 +280,58 @@ const fallbackRepo = new LocalStorageNoteRepository();
 export const noteRepository: NoteRepository = new TauriNoteRepository();
 export const folderRepository: FolderRepository = new LocalStorageFolderRepository();
 export const boardCardRepository: BoardCardRepository = new LocalStorageBoardCardRepository();
+
+const TASKS_STORAGE_KEY = 'notas_app_standalone_tasks_v1';
+
+export const DEFAULT_STANDALONE_TASKS: Task[] = [
+  {
+    id: 'task-1',
+    title: 'Revisar diseño minimalista de la interfaz',
+    completed: false,
+    source: 'manual',
+    createdAt: Date.now() - 3600000,
+  },
+  {
+    id: 'task-2',
+    title: 'Organizar documentos y notas en carpetas',
+    completed: true,
+    source: 'manual',
+    createdAt: Date.now() - 7200000,
+  },
+];
+
+export class LocalStorageTaskRepository implements TaskRepository {
+  async getAll(): Promise<Task[]> {
+    try {
+      const data = localStorage.getItem(TASKS_STORAGE_KEY);
+      if (!data) {
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(DEFAULT_STANDALONE_TASKS));
+        return DEFAULT_STANDALONE_TASKS;
+      }
+      return JSON.parse(data);
+    } catch {
+      return DEFAULT_STANDALONE_TASKS;
+    }
+  }
+
+  async save(task: Task): Promise<void> {
+    const tasks = await this.getAll();
+    const index = tasks.findIndex((t) => t.id === task.id);
+    let updated: Task[];
+    if (index >= 0) {
+      updated = [...tasks];
+      updated[index] = task;
+    } else {
+      updated = [{ ...task }, ...tasks];
+    }
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  async delete(id: string): Promise<void> {
+    const tasks = await this.getAll();
+    const filtered = tasks.filter((t) => t.id !== id);
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(filtered));
+  }
+}
+
+export const taskRepository: TaskRepository = new LocalStorageTaskRepository();

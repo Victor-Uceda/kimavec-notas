@@ -51,7 +51,7 @@ export const CommandPalette: React.FC = () => {
   // Extraer todas las tareas de todas las notas (incluyendo subtareas jerárquicas)
   const allTasks = useMemo(() => {
     const tasks: Task[] = [];
-    notes.forEach((note) => {
+    notes.filter((n) => !n.deletedAt).forEach((note) => {
       const noteTasks = extractTasksFromMarkdown(note.content, note.id);
       tasks.push(...flattenTasks(noteTasks));
     });
@@ -61,9 +61,10 @@ export const CommandPalette: React.FC = () => {
   // Filtrar notas
   const matchingNotes = useMemo(() => {
     if (activeTab === 'tasks') return [];
-    if (!query.trim()) return notes.slice(0, 5);
+    const activeNotes = notes.filter((n) => !n.deletedAt);
+    if (!query.trim()) return activeNotes.slice(0, 5);
     const q = query.toLowerCase();
-    return notes.filter(
+    return activeNotes.filter(
       (n) =>
         n.title.toLowerCase().includes(q) ||
         n.content.toLowerCase().replace(/<[^>]+>/g, '').includes(q)

@@ -1,120 +1,53 @@
 import React, { useState, useMemo } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
-  Bold,
-  Italic,
-  List,
-  ListOrdered,
-  Quote,
-  Clock,
-  Network,
-  ChevronDown,
-  CheckSquare,
+  X,
+  FileText,
+  ShieldCheck,
+  Info,
+  FolderInput,
+  Trash2,
   Undo,
   Redo,
-  Trash2,
-  Calendar,
-  FileText,
-  Timer,
-  Code,
-  Folder as FolderIcon,
-  ListTodo,
+  Bold,
+  Italic,
+  Strikethrough,
+  Underline as UnderlineIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  CheckSquare,
 } from 'lucide-react';
 import type { Note } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
-import { extractTasksFromMarkdown } from '../../utils/taskParser';
 
 interface EditorToolbarProps {
   editor: Editor | null;
   note?: Note;
+  onClose?: () => void;
   onOpenGraph?: () => void;
   onDeleteNote?: () => void;
 }
 
-// Configuración declarativa de herramientas inline
-const INLINE_ACTIONS = [
-  {
-    id: 'bold',
-    label: 'Negrita (Ctrl+B)',
-    icon: Bold,
-    action: (editor: Editor) => editor.chain().focus().toggleBold().run(),
-    isActive: (editor: Editor) => editor.isActive('bold'),
-  },
-  {
-    id: 'italic',
-    label: 'Cursiva (Ctrl+I)',
-    icon: Italic,
-    action: (editor: Editor) => editor.chain().focus().toggleItalic().run(),
-    isActive: (editor: Editor) => editor.isActive('italic'),
-  },
-  {
-    id: 'bulletList',
-    label: 'Lista con viñetas',
-    icon: List,
-    action: (editor: Editor) => editor.chain().focus().toggleBulletList().run(),
-    isActive: (editor: Editor) => editor.isActive('bulletList'),
-  },
-  {
-    id: 'orderedList',
-    label: 'Lista numerada',
-    icon: ListOrdered,
-    action: (editor: Editor) => editor.chain().focus().toggleOrderedList().run(),
-    isActive: (editor: Editor) => editor.isActive('orderedList'),
-  },
-  {
-    id: 'blockquote',
-    label: 'Cita en bloque',
-    icon: Quote,
-    action: (editor: Editor) => editor.chain().focus().toggleBlockquote().run(),
-    isActive: (editor: Editor) => editor.isActive('blockquote'),
-  },
-  {
-    id: 'taskList',
-    label: 'Lista de tareas',
-    icon: CheckSquare,
-    action: (editor: Editor) => editor.chain().focus().toggleTaskList().run(),
-    isActive: (editor: Editor) => editor.isActive('taskList'),
-  },
-  {
-    id: 'codeBlock',
-    label: 'Bloque de código (mismo recuadro)',
-    icon: Code,
-    action: (editor: Editor) => {
-      if (editor.isActive('code')) {
-        editor.chain().focus().unsetCode().run();
-      }
-      editor.chain().focus().toggleCodeBlock().run();
-    },
-    isActive: (editor: Editor) => editor.isActive('codeBlock'),
-  },
-];
-
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   note,
+  onClose,
   onOpenGraph,
   onDeleteNote,
 }) => {
   const { isTaskPanelOpen, toggleTaskPanel, folders, moveNoteToFolder } = useAppStore();
-  const [showBlockMenu, setShowBlockMenu] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const currentFolder = useMemo(() => {
     if (!note?.folderId) return null;
     return folders.find((f) => f.id === note.folderId) || null;
   }, [folders, note]);
 
-  const noteTasks = useMemo(() => {
-    if (!note) return [];
-    return extractTasksFromMarkdown(note.content, note.id);
-  }, [note]);
-
-  const pendingTasksCount = useMemo(() => {
-    return noteTasks.filter((t) => !t.completed).length;
-  }, [noteTasks]);
-
-  // Estadísticas reactivas de la nota
+  // Estadísticas rápidas para el modal de Información
   const stats = useMemo(() => {
     if (!editor) return { words: 0, chars: 0, readingTime: 1 };
     const text = editor.getText().trim();
@@ -124,300 +57,383 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return { words, chars, readingTime };
   }, [editor]);
 
-  if (!editor) {
-    return (
-      <div className="h-12 w-full border-b border-app-border-subtle flex items-center px-6 bg-white rounded-none opacity-50" />
-    );
-  }
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else if (note) {
+      useAppStore.getState().closeNoteTab(note.id);
+    }
+  };
 
-  const getActiveBlockLabel = () => {
-    if (editor.isActive('heading', { level: 1 })) return 'Título H1';
-    if (editor.isActive('heading', { level: 2 })) return 'Subtítulo H2';
-    if (editor.isActive('codeBlock')) return 'Código';
-    if (editor.isActive('taskList')) return 'Lista de tareas';
-    return 'Texto';
+  const handleOpenGraph = () => {
+    if (onOpenGraph) {
+      onOpenGraph();
+    } else {
+      useAppStore.getState().setNav('canvas');
+    }
+  };
+
+  const handleDeleteNote = () => {
+    if (onDeleteNote) {
+      onDeleteNote();
+    } else if (note) {
+      if (window.confirm(`¿Eliminar la nota "${note.title || 'sin título'}"?`)) {
+        useAppStore.getState().deleteNote(note.id);
+      }
+    }
   };
 
   return (
-    <div className="h-11 w-full border-b border-app-border-subtle flex items-center justify-between px-2 sm:px-3 select-none bg-white rounded-none relative shrink-0 overflow-x-auto no-scrollbar gap-1">
-      {/* Controles Izquierdos de Formato */}
-      <div className="flex items-center gap-0.5 text-app-text-secondary shrink-0">
-        {/* Selector de tipo de bloque */}
-        <div className="relative">
+    <div className="w-full flex flex-col select-none bg-white relative shrink-0">
+      {/* 1. Fila Superior: Botón Cerrar (X) a la izquierda y Acciones a la derecha */}
+      <div className="h-11 px-6 flex items-center justify-between">
+        {/* Botón Cerrar (X) */}
+        <div>
           <button
             type="button"
-            onClick={() => setShowBlockMenu((v) => !v)}
-            className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md hover:bg-black/5 text-app-text-primary transition-colors"
+            onClick={handleClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 transition-colors"
+            title="Cerrar nota"
           >
-            <span className="truncate max-w-[80px] sm:max-w-none">{getActiveBlockLabel()}</span>
-            <ChevronDown className="w-3 h-3 opacity-70 shrink-0" />
+            <X className="w-4 h-4 stroke-[2.2]" />
           </button>
-
-          {showBlockMenu && (
-            <div className="absolute left-0 top-10 liquid-glass-card border border-white/90 rounded-xl shadow-2xl py-1.5 w-44 z-30 backdrop-blur-2xl">
-              <button
-                type="button"
-                onClick={() => {
-                  editor.chain().focus().setParagraph().run();
-                  setShowBlockMenu(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-body hover:bg-black/5 ${
-                  editor.isActive('paragraph') ? 'font-semibold text-black' : 'text-app-text-primary'
-                }`}
-              >
-                Párrafo regular
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  editor.chain().focus().toggleHeading({ level: 1 }).run();
-                  setShowBlockMenu(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-body hover:bg-black/5 ${
-                  editor.isActive('heading', { level: 1 }) ? 'font-bold text-black' : 'text-app-text-primary'
-                }`}
-              >
-                Título H1
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  editor.chain().focus().toggleHeading({ level: 2 }).run();
-                  setShowBlockMenu(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-body hover:bg-black/5 ${
-                  editor.isActive('heading', { level: 2 }) ? 'font-semibold text-black' : 'text-app-text-primary'
-                }`}
-              >
-                Subtítulo H2
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  editor.chain().focus().toggleCodeBlock().run();
-                  setShowBlockMenu(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 text-body hover:bg-black/5 ${
-                  editor.isActive('codeBlock') ? 'font-semibold text-black' : 'text-app-text-primary'
-                }`}
-              >
-                Bloque de Código
-              </button>
-            </div>
-          )}
         </div>
 
-        <div className="w-[1px] h-3.5 bg-app-border-subtle mx-1" />
-
-        {/* Botones de formato inline generados limpiamente */}
-        {INLINE_ACTIONS.map(({ id, label, icon: Icon, action, isActive }) => (
+        {/* Fila de iconos de acción minimalistas (derecha) */}
+        <div className="flex items-center gap-1.5">
+          {/* Documento / Ver en grafo */}
           <button
-            key={id}
             type="button"
-            aria-label={label}
-            onClick={() => action(editor)}
-            className={`w-6.5 h-6.5 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors ${
-              isActive(editor)
-                ? 'bg-app-active-pill text-app-text-primary'
-                : 'hover:bg-black/5 hover:text-app-text-primary'
+            onClick={handleOpenGraph}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 transition-colors"
+            title="Ver conexiones en grafo"
+          >
+            <FileText className="w-4 h-4 stroke-[1.8]" />
+          </button>
+
+          {/* Escudo / Panel de Tareas */}
+          <button
+            type="button"
+            onClick={() => toggleTaskPanel()}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+              isTaskPanelOpen
+                ? 'bg-app-action-primary text-white shadow-2xs'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
             }`}
-            title={label}
+            title={isTaskPanelOpen ? 'Ocultar panel de tareas' : 'Abrir panel de tareas'}
           >
-            <Icon className="w-3.5 h-3.5 stroke-[2]" />
-          </button>
-        ))}
-
-        <div className="w-[1px] h-3.5 bg-app-border-subtle mx-1" />
-
-        {/* Deshacer / Rehacer */}
-        <button
-          type="button"
-          aria-label="Deshacer"
-          disabled={!editor.can().undo()}
-          onClick={() => editor.chain().focus().undo().run()}
-          className="w-6.5 h-6.5 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-black/5 hover:text-app-text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Deshacer (Ctrl+Z)"
-        >
-          <Undo className="w-3.5 h-3.5 stroke-[2]" />
-        </button>
-        <button
-          type="button"
-          aria-label="Rehacer"
-          disabled={!editor.can().redo()}
-          onClick={() => editor.chain().focus().redo().run()}
-          className="w-6.5 h-6.5 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-black/5 hover:text-app-text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Rehacer (Ctrl+Y)"
-        >
-          <Redo className="w-3.5 h-3.5 stroke-[2]" />
-        </button>
-      </div>
-
-      {/* Utilidades Derechas: Carpeta, Tareas, Estadísticas, Grafo y Eliminar */}
-      <div className="flex items-center gap-1 text-app-text-secondary shrink-0 ml-auto pl-1">
-        {/* Selector de Carpeta para la nota actual */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowFolderMenu((v) => !v)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 transition-colors"
-            title="Mover o asignar carpeta a esta nota"
-          >
-            <FolderIcon className="w-3.5 h-3.5 opacity-70" />
-            <span className="truncate max-w-[85px] sm:max-w-[110px]">
-              {currentFolder ? currentFolder.name : 'Sin carpeta'}
-            </span>
-            <ChevronDown className="w-3 h-3 opacity-60" />
+            <ShieldCheck className="w-4 h-4 stroke-[1.8]" />
           </button>
 
-          {showFolderMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setShowFolderMenu(false)}
-              />
-              <div className="absolute right-0 top-9 liquid-glass-card border border-white/90 rounded-xl shadow-xl py-1.5 w-44 z-40 text-xs text-app-text-primary">
-                <span className="px-3 py-1 text-[10px] font-bold text-app-text-secondary uppercase tracking-wider block">
-                  Carpeta de la nota
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (note) moveNoteToFolder(note.id, undefined);
-                    setShowFolderMenu(false);
-                  }}
-                  className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-black/5 ${
-                    !note?.folderId ? 'font-semibold text-blue-600' : ''
-                  }`}
-                >
-                  <span>Sin carpeta</span>
-                  {!note?.folderId && <CheckSquare className="w-3.5 h-3.5" />}
-                </button>
-                {folders.map((f) => (
+          {/* Información de la nota (i) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowInfoModal((v) => !v)}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+                showInfoModal
+                  ? 'bg-black/10 text-app-text-primary'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+              }`}
+              title="Información de la nota"
+            >
+              <Info className="w-4 h-4 stroke-[1.8]" />
+            </button>
+
+            {showInfoModal && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setShowInfoModal(false)}
+                />
+                <div className="absolute right-0 top-10 liquid-glass-card border border-white/90 rounded-2xl shadow-2xl p-4 w-60 z-40 text-app-text-primary backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100">
+                  <h4 className="text-xs font-bold text-app-text-primary mb-2.5 pb-1.5 border-b border-app-border-subtle">
+                    Detalles de la nota
+                  </h4>
+                  <div className="space-y-2 text-xs text-app-text-secondary">
+                    <div className="flex items-center justify-between">
+                      <span>Palabras:</span>
+                      <span className="font-semibold text-app-text-primary">{stats.words}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Caracteres:</span>
+                      <span className="font-semibold text-app-text-primary">{stats.chars}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Lectura estimada:</span>
+                      <span className="font-semibold text-app-text-primary">~{stats.readingTime} min</span>
+                    </div>
+                    {currentFolder && (
+                      <div className="flex items-center justify-between">
+                        <span>Carpeta:</span>
+                        <span className="font-semibold text-app-text-primary">{currentFolder.name}</span>
+                      </div>
+                    )}
+                    {note?.updatedAt && (
+                      <div className="pt-2 border-t border-app-border-subtle text-[11px] text-app-text-secondary/80">
+                        <span>Modificado: {new Date(note.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Mover a carpeta (FolderInput) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFolderMenu((v) => !v)}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+                showFolderMenu
+                  ? 'bg-black/10 text-app-text-primary'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+              }`}
+              title={currentFolder ? `Mover (en ${currentFolder.name})` : 'Mover a carpeta'}
+            >
+              <FolderInput className="w-4 h-4 stroke-[1.8]" />
+            </button>
+
+            {showFolderMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setShowFolderMenu(false)}
+                />
+                <div className="absolute right-0 top-10 liquid-glass-card border border-white/90 rounded-xl shadow-xl py-1.5 w-44 z-40 text-xs text-app-text-primary animate-in fade-in zoom-in-95 duration-100">
+                  <span className="px-3 py-1 text-[10px] font-bold text-app-text-secondary uppercase tracking-wider block">
+                    Mover a carpeta
+                  </span>
                   <button
-                    key={f.id}
                     type="button"
                     onClick={() => {
-                      if (note) moveNoteToFolder(note.id, f.id);
+                      if (note) moveNoteToFolder(note.id, undefined);
                       setShowFolderMenu(false);
                     }}
-                    className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-black/5 ${
-                      note?.folderId === f.id ? 'font-semibold text-blue-600' : ''
+                    className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-black/5 transition-colors ${
+                      !note?.folderId ? 'font-semibold text-blue-600' : ''
                     }`}
                   >
-                    <span className="truncate">{f.name}</span>
-                    {note?.folderId === f.id && <CheckSquare className="w-3.5 h-3.5" />}
+                    <span>Sin carpeta</span>
+                    {!note?.folderId && <CheckSquare className="w-3.5 h-3.5" />}
                   </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                  {folders.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        if (note) moveNoteToFolder(note.id, f.id);
+                        setShowFolderMenu(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-black/5 transition-colors ${
+                        note?.folderId === f.id ? 'font-semibold text-blue-600' : ''
+                      }`}
+                    >
+                      <span className="truncate">{f.name}</span>
+                      {note?.folderId === f.id && <CheckSquare className="w-3.5 h-3.5" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
-        {/* Alternar Panel Lateral de Tareas bajo demanda */}
-        <button
-          type="button"
-          aria-label={isTaskPanelOpen ? 'Ocultar panel de tareas' : 'Abrir panel de tareas'}
-          onClick={() => toggleTaskPanel()}
-          className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
-            isTaskPanelOpen
-              ? 'bg-app-action-primary text-white shadow-2xs'
-              : 'text-app-text-secondary hover:bg-black/5 hover:text-app-text-primary'
-          }`}
-          title={isTaskPanelOpen ? 'Ocultar panel lateral de tareas' : 'Abrir panel lateral de tareas'}
-        >
-          <ListTodo className="w-3.5 h-3.5 stroke-[1.8]" />
-          <span className="hidden md:inline">Tareas</span>
-          {noteTasks.length > 0 && (
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
-                isTaskPanelOpen ? 'bg-white/25 text-white' : 'bg-black/10 text-app-text-primary'
-              }`}
-            >
-              {pendingTasksCount > 0 ? pendingTasksCount : '✓'}
-            </span>
-          )}
-        </button>
-
-        <div className="w-[1px] h-3.5 bg-app-border-subtle mx-0.5" />
-
-        <div className="relative">
+          {/* Eliminar nota (Papelera) */}
           <button
             type="button"
-            aria-label="Historial y estadísticas"
-            onClick={() => setShowStats((v) => !v)}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
-              showStats ? 'bg-app-active-pill text-app-text-primary' : 'hover:bg-black/5 hover:text-app-text-primary'
-            }`}
-            title="Estadísticas de la nota"
+            onClick={handleDeleteNote}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+            title="Enviar nota a la papelera"
           >
-            <Clock className="w-4 h-4 stroke-[1.8]" />
+            <Trash2 className="w-4 h-4 stroke-[1.8]" />
           </button>
-
-          {showStats && (
-            <div className="absolute right-0 top-9 liquid-glass-card border border-white/90 rounded-2xl shadow-2xl p-4 w-64 z-30 text-app-text-primary backdrop-blur-2xl">
-              <h4 className="text-body font-semibold mb-2.5 pb-1.5 border-b border-app-border-subtle">
-                Información de la Nota
-              </h4>
-              <div className="space-y-2 text-task">
-                <div className="flex items-center justify-between text-app-text-secondary">
-                  <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
-                    Palabras:
-                  </span>
-                  <span className="font-medium text-app-text-primary">{stats.words}</span>
-                </div>
-                <div className="flex items-center justify-between text-app-text-secondary">
-                  <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
-                    Caracteres:
-                  </span>
-                  <span className="font-medium text-app-text-primary">{stats.chars}</span>
-                </div>
-                <div className="flex items-center justify-between text-app-text-secondary">
-                  <span className="flex items-center gap-1.5">
-                    <Timer className="w-3.5 h-3.5" />
-                    Lectura estimada:
-                  </span>
-                  <span className="font-medium text-app-text-primary">~{stats.readingTime} min</span>
-                </div>
-                {note?.updatedAt && (
-                  <div className="pt-2 border-t border-app-border-subtle flex flex-col gap-1 text-badge text-app-text-secondary">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      Última modificación:
-                    </span>
-                    <span className="text-app-text-primary font-medium">
-                      {new Date(note.updatedAt).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
-
-        <button
-          type="button"
-          aria-label="Ver grafo"
-          onClick={onOpenGraph}
-          className="w-7 h-7 flex items-center justify-center rounded hover:bg-black/5 hover:text-app-text-primary transition-colors"
-          title="Ver en grafo"
-        >
-          <Network className="w-4 h-4 stroke-[1.8]" />
-        </button>
-
-        {onDeleteNote && (
-          <button
-            type="button"
-            aria-label="Eliminar nota"
-            onClick={onDeleteNote}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 hover:text-red-600 transition-colors ml-1"
-            title="Eliminar esta nota"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
+
+      {/* 2. Segunda Fila: Barra cápsula flotante con los iconos exactos de formato */}
+      <div className="px-6 py-1 flex items-center">
+        <div className="w-full bg-[#F1F2F5] border border-black/[0.04] rounded-2xl px-3 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar shadow-2xs">
+          {/* Deshacer */}
+          <button
+            type="button"
+            disabled={!editor?.can().undo()}
+            onClick={() => editor?.chain().focus().undo().run()}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 disabled:opacity-30 transition-colors"
+            title="Deshacer (Ctrl+Z)"
+          >
+            <Undo className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Rehacer */}
+          <button
+            type="button"
+            disabled={!editor?.can().redo()}
+            onClick={() => editor?.chain().focus().redo().run()}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 disabled:opacity-30 transition-colors"
+            title="Rehacer (Ctrl+Y)"
+          >
+            <Redo className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Negrita (B) */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive('bold')
+                ? 'bg-black/10 text-app-text-primary font-bold'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Negrita (Ctrl+B)"
+          >
+            <Bold className="w-3.5 h-3.5 stroke-[2.4]" />
+          </button>
+
+          {/* Cursiva (I) */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive('italic')
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Cursiva (Ctrl+I)"
+          >
+            <Italic className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Tachado (S) */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleStrike().run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive('strike')
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Tachado"
+          >
+            <Strikethrough className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Subrayado (U) */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive('underline')
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Subrayado"
+          >
+            <UnderlineIcon className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Alinear a la izquierda */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive({ textAlign: 'left' })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Alinear a la izquierda"
+          >
+            <AlignLeft className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Alinear al centro */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive({ textAlign: 'center' })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Centrar"
+          >
+            <AlignCenter className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Alinear a la derecha */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive({ textAlign: 'right' })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Alinear a la derecha"
+          >
+            <AlignRight className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Justificar */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive({ textAlign: 'justify' })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Justificar"
+          >
+            <AlignJustify className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* Viñetas (Lista) */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+              editor?.isActive('bulletList')
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Lista con viñetas"
+          >
+            <List className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+
+          {/* H1 */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
+              editor?.isActive('heading', { level: 1 })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Título 1"
+          >
+            H1
+          </button>
+
+          {/* H2 */}
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
+              editor?.isActive('heading', { level: 2 })
+                ? 'bg-black/10 text-app-text-primary'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+            }`}
+            title="Título 2"
+          >
+            H2
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Línea divisoria delgada */}
+      <div className="w-full border-b border-app-border-subtle mt-2" />
     </div>
   );
 };

@@ -54,9 +54,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
   const dragStart = useRef({ x: 0, y: 0 });
   const draggedNodeRef = useRef<GraphNode | null>(null);
 
-  // Filtrar notas con contenido real para un grafo limpio
+  // Filtrar notas con contenido real para un grafo limpio (excluyendo papelera)
   const validNotes = useMemo(() => {
     return notes.filter((n) => {
+      if (n.deletedAt) return false;
       const hasTitle = n.title.trim().length > 0;
       const hasContent = n.content.replace(/<[^>]+>/g, '').trim().length > 0;
       return hasTitle || hasContent || n.id === activeNoteId;

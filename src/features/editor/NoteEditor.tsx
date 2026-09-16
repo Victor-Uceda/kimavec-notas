@@ -6,6 +6,9 @@ import { common, createLowlight } from 'lowlight';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import { CloudCheck } from 'lucide-react';
 import { EditorToolbar } from './EditorToolbar';
 import { WikilinkAutocomplete } from './WikilinkAutocomplete';
 import { SmartPillsExtension } from './extensions/SmartPillsExtension';
@@ -20,6 +23,7 @@ interface NoteEditorProps {
   onChangeContent: (content: string) => void;
   onOpenGraph?: () => void;
   onDeleteNote?: () => void;
+  onClose?: () => void;
 }
 
 export const NoteEditor: React.FC<NoteEditorProps> = ({
@@ -28,9 +32,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onChangeContent,
   onOpenGraph,
   onDeleteNote,
+  onClose,
 }) => {
   const { notes } = useAppStore();
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Estado para feedback visual de conexión
   const [connectionToast, setConnectionToast] = useState<string | null>(null);
@@ -98,6 +105,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
       }),
+      Underline,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
       CodeBlockLowlight.configure({
         lowlight,
       }),
@@ -117,7 +128,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({
-        placeholder: 'Escribe tus pensamientos, tareas o notas aquí (usa [[ para conectar notas)...',
+        placeholder: 'Escribe aquí tu nota (usa [[ para conectar notas)...',
       }),
     ],
     content: note.content || '<p></p>',
@@ -175,6 +186,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       },
     },
     onUpdate: ({ editor: currentEditor }) => {
+      setSaveStatus('saving');
+      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+      saveStatusTimerRef.current = setTimeout(() => setSaveStatus('saved'), 500);
       onChangeContent(currentEditor.getHTML());
       checkWikilink(currentEditor);
     },
@@ -182,6 +196,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       checkWikilink(currentEditor);
     },
   });
+
+  // Limpiar timer de guardado
+  useEffect(() => {
+    return () => {
+      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    };
+  }, []);
 
   // Sincronizar contenido al cambiar de nota activa
   useEffect(() => {
@@ -217,19 +238,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <EditorToolbar
         editor={editor}
         note={note}
+        onClose={onClose}
         onOpenGraph={onOpenGraph}
         onDeleteNote={onDeleteNote}
       />
 
       {/* Hoja física de escritura */}
-      <div className="flex-1 overflow-y-auto px-10 py-8 flex flex-col">
+      <div className="flex-1 overflow-y-auto px-10 py-7 flex flex-col">
         <input
           ref={titleInputRef}
           type="text"
           value={note.title}
-          onChange={(e) => onChangeTitle(e.target.value)}
-          placeholder="Escribe una nota rápida..."
-          className="w-full text-h1 font-bold text-app-text-primary bg-transparent outline-none border-none p-0 mb-4 placeholder:text-app-text-secondary/50 tracking-tight"
+          onChange={(e) => {
+            setSaveStatus('saving');
+            if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+            saveStatusTimerRef.current = setTimeout(() => setSaveStatus('saved'), 500);
+            onChangeTitle(e.target.value);
+          }}
+          placeholder="Título..."
+          className="w-full text-xl font-bold text-app-text-primary bg-transparent outline-none border-none p-0 mb-3 placeholder:text-app-text-secondary/35 tracking-tight"
         />
 
         <div
@@ -241,6 +268,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           }}
         >
           <EditorContent editor={editor} className="min-h-full" />
+        </div>
+      </div>
+
+      {/* Botón flotante circular de guardado automático en esquina inferior derecha */}
+      <div className="absolute bottom-6 right-6 z-20 select-none">
+        <div
+          className="w-10 h-10 rounded-full bg-[#F1F2F5] hover:bg-[#E5E7EB] border border-black/[0.06] flex items-center justify-center text-app-text-secondary transition-all shadow-2xs group cursor-default"
+          title={saveStatus === 'saved' ? 'Guardado automáticamente' : 'Guardando...'}
+        >
+          <CloudCheck
+            className={`w-5 h-5 transition-colors ${
+              saveStatus === 'saving'
+                ? 'text-amber-500 animate-pulse'
+                : 'text-zinc-400 group-hover:text-emerald-600'
+            }`}
+          />
         </div>
       </div>
 

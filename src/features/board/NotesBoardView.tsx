@@ -19,6 +19,7 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
   const [newCardTitle, setNewCardTitle] = useState('');
   const [newCardContent, setNewCardContent] = useState('');
   const [newCardLinkedNoteId, setNewCardLinkedNoteId] = useState<string>('');
+  const [newCardDueDate, setNewCardDueDate] = useState<string>('');
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<NoteStatus | null>(null);
 
@@ -32,7 +33,26 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
   ];
 
   const getCardsByStatus = (status: NoteStatus) => {
-    return boardCards.filter((c) => c.status === status);
+    return boardCards.filter((c) => !c.deletedAt && c.status === status);
+  };
+
+  const isDateOverdue = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const due = new Date(dateStr).getTime();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return due < today.getTime();
+  };
+
+  const formatDueDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    }
+    return dateStr;
   };
 
   const handleAddCard = async (status: NoteStatus) => {
@@ -45,10 +65,12 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
       content: newCardContent.trim(),
       status,
       linkedNoteId: newCardLinkedNoteId || undefined,
+      dueDate: newCardDueDate || undefined,
     });
     setNewCardTitle('');
     setNewCardContent('');
     setNewCardLinkedNoteId('');
+    setNewCardDueDate('');
     setAddingInColumn(null);
   };
 
@@ -162,21 +184,36 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
                       className="w-full text-xs text-app-text-primary border border-app-border-subtle rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-black/20 resize-none"
                     />
 
-                    {/* Selector opcional de nota a referenciar */}
-                    <div className="flex items-center gap-1 text-[11px] text-app-text-secondary bg-black/5 p-1 rounded-lg">
-                      <i className="fi fi-rr-document text-xs ml-1" />
-                      <select
-                        value={newCardLinkedNoteId}
-                        onChange={(e) => setNewCardLinkedNoteId(e.target.value)}
-                        className="bg-transparent border-none outline-none text-app-text-primary text-[11px] w-full cursor-pointer"
-                      >
-                        <option value="">Sin nota vinculada</option>
-                        {notes.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            Referenciar: {n.title.trim() || 'Nota sin título'}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Selectores: Fecha límite y Nota vinculada */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex items-center gap-1.5 text-[11px] text-app-text-secondary bg-black/5 px-2 py-1.5 rounded-lg">
+                        <i className="fi fi-rr-calendar text-xs opacity-70 leading-none" />
+                        <input
+                          type="date"
+                          value={newCardDueDate}
+                          onChange={(e) => setNewCardDueDate(e.target.value)}
+                          className="bg-transparent border-none outline-none text-app-text-primary text-[11px] w-full cursor-pointer"
+                          title="Fecha límite opcional"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[11px] text-app-text-secondary bg-black/5 px-2 py-1 rounded-lg">
+                        <i className="fi fi-rr-document text-xs opacity-70 ml-0.5 leading-none" />
+                        <select
+                          value={newCardLinkedNoteId}
+                          onChange={(e) => setNewCardLinkedNoteId(e.target.value)}
+                          className="bg-transparent border-none outline-none text-app-text-primary text-[11px] w-full cursor-pointer truncate"
+                        >
+                          <option value="">Sin vincular</option>
+                          {notes
+                            .filter((n) => !n.deletedAt)
+                            .map((n) => (
+                              <option key={n.id} value={n.id}>
+                                {n.title.trim() || 'Nota sin título'}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-end gap-1.5 pt-1">
@@ -187,6 +224,7 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
                           setNewCardTitle('');
                           setNewCardContent('');
                           setNewCardLinkedNoteId('');
+                          setNewCardDueDate('');
                         }}
                         className="px-2 py-1 text-xs text-app-text-secondary hover:text-app-text-primary"
                       >
@@ -211,7 +249,7 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
 
                 {colCards.map((card) => {
                   const isBeingDragged = draggedCardId === card.id;
-                  const linkedNote = card.linkedNoteId ? notes.find((n) => n.id === card.linkedNoteId) : null;
+                  const linkedNote = card.linkedNoteId ? notes.find((n) => n.id === card.linkedNoteId && !n.deletedAt) : null;
 
                   return (
                     <div
@@ -251,6 +289,26 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
                         <p className="text-xs text-app-text-secondary/40 italic">
                           Sin contenido
                         </p>
+                      )}
+
+                      {/* BADGE DE FECHA LÍMITE (DUE DATE) */}
+                      {card.dueDate && (
+                        <div className="flex items-center pt-0.5">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md ${
+                              isDateOverdue(card.dueDate) && card.status !== 'completed'
+                                ? 'bg-red-50 text-red-700 border border-red-200/60'
+                                : 'bg-black/5 text-app-text-secondary'
+                            }`}
+                            title={`Fecha límite: ${card.dueDate}`}
+                          >
+                            <i className="fi fi-rr-calendar text-[10px] leading-none" />
+                            <span>{formatDueDate(card.dueDate)}</span>
+                            {isDateOverdue(card.dueDate) && card.status !== 'completed' && (
+                              <span className="font-semibold text-[9px] ml-0.5">(Vencida)</span>
+                            )}
+                          </span>
+                        </div>
                       )}
 
                       {/* REFERENCIA OPCIONAL A NOTA NORMAL (SIN SER LA MISMA NOTA) */}

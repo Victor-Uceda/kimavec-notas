@@ -25,22 +25,37 @@ export const Dock: React.FC<DockProps> = ({
 
       {/* Zona Central: Navegación limpia y minimalista */}
       <nav className="my-auto flex flex-col items-center gap-2.5">
-        {/* 1. Botón de Editor / Inicio */}
+        {/* 1. Botón de Inicio (Nota rápida) */}
         <button
           type="button"
-          aria-label="Editor"
+          aria-label="Inicio"
           onClick={() => onSelectItem('home')}
           className={`w-10 h-10 rounded-dock flex items-center justify-center transition-colors duration-150 ${
             activeItem === 'home'
               ? 'bg-app-active-pill text-app-text-primary shadow-2xs'
               : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
           }`}
-          title="Editor de notas y carpetas"
+          title="Inicio - Nota rápida"
         >
           <i className="fi fi-rr-home text-[17px] leading-none" />
         </button>
 
-        {/* 2. Botón de Flujo (Planeadas, En Progreso, Completadas) */}
+        {/* 2. Botón de Notas (Explorador de carpetas y notas) */}
+        <button
+          type="button"
+          aria-label="Notas"
+          onClick={() => onSelectItem('notes')}
+          className={`w-10 h-10 rounded-dock flex items-center justify-center transition-colors duration-150 ${
+            activeItem === 'notes'
+              ? 'bg-app-active-pill text-app-text-primary shadow-2xs'
+              : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
+          }`}
+          title="Notas y carpetas"
+        >
+          <i className="fi fi-rr-folder text-[17px] leading-none" />
+        </button>
+
+        {/* 3. Botón de Flujo (Planeadas, En Progreso, Completadas) */}
         <button
           type="button"
           aria-label="Flujo"
@@ -55,7 +70,7 @@ export const Dock: React.FC<DockProps> = ({
           <i className="fi fi-rr-chart-kanban text-[17px] leading-none" />
         </button>
 
-        {/* 3. Botón de Por hacer (Tareas) */}
+        {/* 5. Botón de Por hacer (Tareas) */}
         <button
           type="button"
           aria-label="Por hacer"
@@ -70,7 +85,7 @@ export const Dock: React.FC<DockProps> = ({
           <i className="fi fi-rr-clipboard-list-check text-[17px] leading-none" />
         </button>
 
-        {/* 4. Botón de Grafo de Red Neuronal */}
+        {/* 6. Botón de Grafo de Red Neuronal */}
         <button
           type="button"
           aria-label="Red Neuronal / Grafo"

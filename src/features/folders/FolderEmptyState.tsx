@@ -6,21 +6,29 @@ interface FolderEmptyStateProps {
   onQuickNote?: () => void;
 }
 
-export const FolderEmptyState: React.FC<FolderEmptyStateProps> = () => {
+export const FolderEmptyState: React.FC<FolderEmptyStateProps> = ({ onCreateNote }) => {
   return (
     <div className="flex-1 h-full w-full flex flex-col items-center justify-center p-8 text-center select-none bg-app-canvas/50">
-      {/* Círculo suave con icono de carpeta en armonía con el Design System */}
-      <div className="w-20 h-20 rounded-full bg-blue-50/90 border border-blue-200/60 flex items-center justify-center mb-4 shadow-2xs ring-8 ring-blue-50/40">
-        <i className="fi fi-sr-folder text-3xl text-blue-600 leading-none" />
+      <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-3 text-app-text-secondary">
+        <i className="fi fi-rr-document text-2xl leading-none opacity-60" />
       </div>
 
-      {/* Texto acorde al Design System */}
-      <h3 className="text-lg sm:text-xl font-medium text-app-text-primary tracking-tight max-w-md">
+      <h3 className="text-sm font-medium text-app-text-primary">
         Selecciona una nota para comenzar a editarla
       </h3>
-      <p className="text-xs text-app-text-secondary mt-1.5 max-w-xs">
-        Elige una nota de tus carpetas o crea una nueva para empezar
+      <p className="text-xs text-app-text-secondary mt-1 max-w-xs">
+        Elige una nota de tus carpetas o crea una nueva
       </p>
+
+      {onCreateNote && (
+        <button
+          type="button"
+          onClick={onCreateNote}
+          className="mt-4 px-3.5 py-1.5 rounded-xl bg-app-action-primary text-white text-xs font-medium hover:opacity-90 transition-opacity shadow-2xs"
+        >
+          Crear nota
+        </button>
+      )}
     </div>
   );
 };

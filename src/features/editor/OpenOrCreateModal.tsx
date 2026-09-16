@@ -37,9 +37,10 @@ export const OpenOrCreateModal: React.FC = () => {
   }, [isAddModalOpen, setAddModalOpen]);
 
   const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) return notes;
+    const activeNotes = notes.filter((n) => !n.deletedAt);
+    if (!searchQuery.trim()) return activeNotes;
     const q = searchQuery.toLowerCase();
-    return notes.filter(
+    return activeNotes.filter(
       (n) =>
         n.title.toLowerCase().includes(q) ||
         n.content.toLowerCase().includes(q)

@@ -18,6 +18,7 @@ export interface Task {
   source: TaskSource;
   createdAt: number;
   subtasks?: Task[];
+  deletedAt?: number;
 }
 
 export type TaskItem = Task;
@@ -27,6 +28,8 @@ export interface Folder {
   name: string;
   createdAt: number;
   color?: string;
+  parentId?: string;
+  deletedAt?: number;
 }
 
 export type NoteStatus = 'planned' | 'in_progress' | 'completed';
@@ -37,8 +40,10 @@ export interface BoardCard {
   content: string;
   status: NoteStatus;
   linkedNoteId?: string;
+  dueDate?: string;
   createdAt: number;
   updatedAt: number;
+  deletedAt?: number;
 }
 
 export interface Note {
@@ -49,6 +54,7 @@ export interface Note {
   folderId?: string;
   status?: NoteStatus;
   priority?: TaskPriority;
+  deletedAt?: number;
 }
 
-export type NavigationItem = 'home' | 'board' | 'todo' | 'canvas' | 'settings';
+export type NavigationItem = 'home' | 'notes' | 'board' | 'todo' | 'canvas' | 'settings';

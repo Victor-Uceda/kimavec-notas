@@ -57,7 +57,7 @@ impl Database {
             .unwrap_or(0);
 
         if count == 0 {
-            let _ = conn.execute(
+            conn.execute(
                 "INSERT INTO notes (id, title, content, updated_at, folder_id, status, priority) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     "note-1",
@@ -68,7 +68,8 @@ impl Database {
                     "in_progress",
                     "high"
                 ],
-            );
+            )
+            .map_err(|e| e.to_string())?;
         }
         Ok(())
     }

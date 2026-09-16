@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { Note, NavigationItem, Folder, NoteStatus, TaskPriority, BoardCard } from '../types';
+import type { Note, NavigationItem, Folder, NoteStatus, TaskPriority, BoardCard, Task } from '../types';
 import {
   noteRepository,
   folderRepository,
   boardCardRepository,
+  taskRepository,
   DEFAULT_NOTES,
   DEFAULT_FOLDERS,
 } from '../services/storage/noteRepository';
@@ -34,7 +35,10 @@ const flushPendingSave = () => {
   }
   if (pendingNoteToSave) {
     if (!isNoteEmpty(pendingNoteToSave)) {
-      noteRepository.save(pendingNoteToSave).catch(console.error);
+      noteRepository.save(pendingNoteToSave).catch((err) => {
+        console.error('Error crítico persistiendo nota:', err);
+        useAppStore.setState({ persistenceError: 'No se pudieron guardar los cambios en la base de datos local.' });
+      });
     }
     pendingNoteToSave = null;
   }
@@ -69,11 +73,15 @@ interface AppState {
   taskFilter: TaskFilter;
   isLoading: boolean;
   isSearchOpen: boolean;
+  isTrashOpen: boolean;
+  persistenceError: string | null;
 
   // Acciones de navegación y búsqueda
   setNav: (item: NavigationItem) => void;
+  setPersistenceError: (error: string | null) => void;
   setTaskFilter: (filter: TaskFilter) => void;
   setSearchOpen: (open: boolean) => void;
+  setTrashOpen: (open: boolean) => void;
   setAddModalOpen: (open: boolean) => void;
   setActivePane: (pane: 'left' | 'right') => void;
   setSecondaryNoteId: (id: string | null) => void;
@@ -82,18 +90,37 @@ interface AppState {
   // Acciones de carpetas
   loadFolders: () => Promise<void>;
   setActiveFolder: (id: string | null) => void;
-  createFolder: (name: string) => Promise<Folder>;
+  createFolder: (name: string, parentId?: string) => Promise<Folder>;
   deleteFolder: (id: string) => Promise<void>;
   renameFolder: (id: string, name: string) => Promise<void>;
+  moveFolder: (folderId: string, newParentId?: string) => Promise<void>;
   moveNoteToFolder: (noteId: string, folderId?: string) => void;
 
   // Tarjetas del Tablero Kanban (entidad independiente de las notas)
   boardCards: BoardCard[];
   loadBoardCards: () => Promise<void>;
-  createBoardCard: (data: { title: string; content?: string; status: NoteStatus; linkedNoteId?: string }) => Promise<string>;
+  createBoardCard: (data: { title: string; content?: string; status: NoteStatus; linkedNoteId?: string; dueDate?: string }) => Promise<string>;
   updateBoardCard: (id: string, updates: Partial<BoardCard>) => Promise<void>;
   updateBoardCardStatus: (id: string, status: NoteStatus) => Promise<void>;
   deleteBoardCard: (id: string) => Promise<void>;
+
+  // Tareas independientes (entidad independiente, no ligada a la Nota 3)
+  standaloneTasks: Task[];
+  loadStandaloneTasks: () => Promise<void>;
+  createStandaloneTask: (title: string, dueDate?: string, priority?: TaskPriority) => Promise<Task>;
+  toggleStandaloneTask: (id: string) => Promise<void>;
+  deleteStandaloneTask: (id: string) => Promise<void>;
+  restoreStandaloneTask: (id: string) => Promise<void>;
+  deleteStandaloneTaskPermanently: (id: string) => Promise<void>;
+
+  // Acciones de Papelera Centralizada (Recuperar, Eliminar Permanente, Vaciar)
+  restoreNote: (noteId: string) => Promise<void>;
+  deleteNotePermanently: (noteId: string) => Promise<void>;
+  restoreFolder: (folderId: string) => Promise<void>;
+  deleteFolderPermanently: (folderId: string) => Promise<void>;
+  restoreBoardCard: (cardId: string) => Promise<void>;
+  deleteBoardCardPermanently: (cardId: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
 
   // Acciones de estado de nota y prioridad (Kanban legacy)
   updateNoteStatus: (noteId: string, status: NoteStatus) => void;
@@ -125,6 +152,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   notes: [],
   folders: [],
   boardCards: [],
+  standaloneTasks: [],
   activeFolderId: null,
   activeNoteId: '',
   secondaryNoteId: null,
@@ -136,6 +164,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   taskFilter: 'all',
   isLoading: true,
   isSearchOpen: false,
+  isTrashOpen: false,
+  persistenceError: null,
+
+  setPersistenceError: (error: string | null) => set({ persistenceError: error }),
 
   setNav: (item: NavigationItem) => {
     flushPendingSave();
@@ -145,6 +177,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTaskFilter: (filter: TaskFilter) => set({ taskFilter: filter }),
 
   setSearchOpen: (open: boolean) => set({ isSearchOpen: open }),
+
+  setTrashOpen: (open: boolean) => set({ isTrashOpen: open }),
 
   setAddModalOpen: (open: boolean) => set({ isAddModalOpen: open }),
 
@@ -169,13 +203,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setActiveFolder: (id: string | null) => set({ activeFolderId: id }),
 
-  createFolder: async (name: string) => {
+  createFolder: async (name: string, parentId?: string) => {
     const trimmed = name.trim();
     if (!trimmed) throw new Error('Nombre de carpeta no puede estar vacío');
     const newFolder: Folder = {
       id: `folder-${Date.now()}`,
       name: trimmed,
       createdAt: Date.now(),
+      parentId,
     };
     await folderRepository.save(newFolder);
     set((state) => ({
@@ -186,18 +221,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteFolder: async (id: string) => {
-    await folderRepository.delete(id);
-    const { folders, activeFolderId, notes } = get();
-    const updatedNotes = notes.map((n) => (n.folderId === id ? { ...n, folderId: undefined } : n));
-    for (const n of updatedNotes) {
-      if (n.folderId === undefined) {
-        debouncedSaveNote(n);
-      }
-    }
+    const { folders, activeFolderId } = get();
+    const target = folders.find((f) => f.id === id);
+    if (!target) return;
+    const updatedFolder: Folder = { ...target, deletedAt: Date.now() };
+    await folderRepository.save(updatedFolder);
     set({
-      folders: folders.filter((f) => f.id !== id),
+      folders: folders.map((f) => (f.id === id ? updatedFolder : f)),
       activeFolderId: activeFolderId === id ? null : activeFolderId,
-      notes: updatedNotes,
     });
   },
 
@@ -211,6 +242,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     await folderRepository.save(updatedFolder);
     set({
       folders: folders.map((f) => (f.id === id ? updatedFolder : f)),
+    });
+  },
+
+  moveFolder: async (folderId: string, newParentId?: string) => {
+    if (folderId === newParentId) return;
+    const { folders } = get();
+    const target = folders.find((f) => f.id === folderId);
+    if (!target) return;
+    const updatedFolder: Folder = { ...target, parentId: newParentId };
+    await folderRepository.save(updatedFolder);
+    set({
+      folders: folders.map((f) => (f.id === folderId ? updatedFolder : f)),
     });
   },
 
@@ -236,13 +279,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  createBoardCard: async (data: { title: string; content?: string; status: NoteStatus; linkedNoteId?: string }) => {
+  createBoardCard: async (data: { title: string; content?: string; status: NoteStatus; linkedNoteId?: string; dueDate?: string }) => {
     const newCard: BoardCard = {
       id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       title: data.title.trim(),
       content: data.content?.trim() || '',
       status: data.status,
       linkedNoteId: data.linkedNoteId,
+      dueDate: data.dueDate,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -276,10 +320,175 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteBoardCard: async (id: string) => {
-    await boardCardRepository.delete(id);
+    const { boardCards } = get();
+    const target = boardCards.find((c) => c.id === id);
+    if (!target) return;
+    const updated: BoardCard = { ...target, deletedAt: Date.now(), updatedAt: Date.now() };
+    await boardCardRepository.save(updated);
     set((state) => ({
-      boardCards: state.boardCards.filter((c) => c.id !== id),
+      boardCards: state.boardCards.map((c) => (c.id === id ? updated : c)),
     }));
+  },
+
+  // Tareas independientes (entidad independiente, no ligada a la Nota 3)
+  loadStandaloneTasks: async () => {
+    try {
+      const standaloneTasks = await taskRepository.getAll();
+      set({ standaloneTasks: standaloneTasks || [] });
+    } catch (err) {
+      console.error('Error cargando tareas independientes:', err);
+    }
+  },
+
+  createStandaloneTask: async (title: string, dueDate?: string, priority?: TaskPriority) => {
+    const trimmed = title.trim();
+    if (!trimmed) throw new Error('Título de la tarea no puede estar vacío');
+    const newTask: Task = {
+      id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      title: trimmed,
+      completed: false,
+      dueDate,
+      priority,
+      source: 'manual',
+      createdAt: Date.now(),
+    };
+    await taskRepository.save(newTask);
+    set((state) => ({
+      standaloneTasks: [newTask, ...state.standaloneTasks],
+    }));
+    return newTask;
+  },
+
+  toggleStandaloneTask: async (id: string) => {
+    const { standaloneTasks } = get();
+    const target = standaloneTasks.find((t) => t.id === id);
+    if (!target) return;
+    const updated: Task = { ...target, completed: !target.completed };
+    await taskRepository.save(updated);
+    set((state) => ({
+      standaloneTasks: state.standaloneTasks.map((t) => (t.id === id ? updated : t)),
+    }));
+  },
+
+  deleteStandaloneTask: async (id: string) => {
+    const { standaloneTasks } = get();
+    const target = standaloneTasks.find((t) => t.id === id);
+    if (!target) return;
+    const updated: Task = { ...target, deletedAt: Date.now() };
+    await taskRepository.save(updated);
+    set((state) => ({
+      standaloneTasks: state.standaloneTasks.map((t) => (t.id === id ? updated : t)),
+    }));
+  },
+
+  restoreStandaloneTask: async (id: string) => {
+    const { standaloneTasks } = get();
+    const target = standaloneTasks.find((t) => t.id === id);
+    if (!target) return;
+    const restored: Task = { ...target, deletedAt: undefined };
+    await taskRepository.save(restored);
+    set((state) => ({
+      standaloneTasks: state.standaloneTasks.map((t) => (t.id === id ? restored : t)),
+    }));
+  },
+
+  deleteStandaloneTaskPermanently: async (id: string) => {
+    await taskRepository.delete(id);
+    set((state) => ({
+      standaloneTasks: state.standaloneTasks.filter((t) => t.id !== id),
+    }));
+  },
+
+  // Acciones de Papelera Centralizada
+  restoreNote: async (noteId: string) => {
+    const { notes } = get();
+    const target = notes.find((n) => n.id === noteId);
+    if (!target) return;
+    const restored: Note = { ...target, deletedAt: undefined, updatedAt: Date.now() };
+    await noteRepository.save(restored);
+    set((state) => ({
+      notes: state.notes.map((n) => (n.id === noteId ? restored : n)),
+      openNoteIds: state.openNoteIds.includes(noteId) ? state.openNoteIds : [...state.openNoteIds, noteId],
+      activeNoteId: noteId,
+    }));
+  },
+
+  deleteNotePermanently: async (noteId: string) => {
+    await noteRepository.delete(noteId);
+    set((state) => ({
+      notes: state.notes.filter((n) => n.id !== noteId),
+      openNoteIds: state.openNoteIds.filter((id) => id !== noteId),
+    }));
+  },
+
+  restoreFolder: async (folderId: string) => {
+    const { folders } = get();
+    const target = folders.find((f) => f.id === folderId);
+    if (!target) return;
+    const restored: Folder = { ...target, deletedAt: undefined };
+    await folderRepository.save(restored);
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === folderId ? restored : f)),
+    }));
+  },
+
+  deleteFolderPermanently: async (folderId: string) => {
+    await folderRepository.delete(folderId);
+    const { notes } = get();
+    const updatedNotes = notes.map((n) => (n.folderId === folderId ? { ...n, folderId: undefined } : n));
+    for (const n of updatedNotes) {
+      if (n.folderId === undefined) debouncedSaveNote(n);
+    }
+    set((state) => ({
+      folders: state.folders.filter((f) => f.id !== folderId),
+      notes: updatedNotes,
+    }));
+  },
+
+  restoreBoardCard: async (cardId: string) => {
+    const { boardCards } = get();
+    const target = boardCards.find((c) => c.id === cardId);
+    if (!target) return;
+    const restored: BoardCard = { ...target, deletedAt: undefined, updatedAt: Date.now() };
+    await boardCardRepository.save(restored);
+    set((state) => ({
+      boardCards: state.boardCards.map((c) => (c.id === cardId ? restored : c)),
+    }));
+  },
+
+  deleteBoardCardPermanently: async (cardId: string) => {
+    await boardCardRepository.delete(cardId);
+    set((state) => ({
+      boardCards: state.boardCards.filter((c) => c.id !== cardId),
+    }));
+  },
+
+  emptyTrash: async () => {
+    const { notes, folders, boardCards, standaloneTasks } = get();
+    const trashedNotes = notes.filter((n) => !!n.deletedAt);
+    const trashedFolders = folders.filter((f) => !!f.deletedAt);
+    const trashedCards = boardCards.filter((c) => !!c.deletedAt);
+    const trashedTasks = standaloneTasks.filter((t) => !!t.deletedAt);
+
+    for (const n of trashedNotes) {
+      await noteRepository.delete(n.id).catch(console.error);
+    }
+    for (const f of trashedFolders) {
+      await folderRepository.delete(f.id).catch(console.error);
+    }
+    for (const c of trashedCards) {
+      await boardCardRepository.delete(c.id).catch(console.error);
+    }
+    for (const t of trashedTasks) {
+      await taskRepository.delete(t.id).catch(console.error);
+    }
+
+    set({
+      notes: notes.filter((n) => !n.deletedAt),
+      folders: folders.filter((f) => !f.deletedAt),
+      boardCards: boardCards.filter((c) => !c.deletedAt),
+      standaloneTasks: standaloneTasks.filter((t) => !t.deletedAt),
+    });
   },
 
   updateNoteStatus: (noteId: string, status: NoteStatus) => {
@@ -308,10 +517,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadNotes: async () => {
     try {
-      const [rawNotes, rawFolders, rawBoardCards] = await Promise.all([
+      const [rawNotes, rawFolders, rawBoardCards, rawStandaloneTasks] = await Promise.all([
         noteRepository.getAll(),
         folderRepository.getAll(),
         boardCardRepository.getAll(),
+        taskRepository.getAll(),
       ]);
 
       let folders = rawFolders;
@@ -322,10 +532,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
-      let notes = (rawNotes || []).filter((n) => !isNoteEmpty(n));
+      let notes = (rawNotes || []).filter((n) => !isNoteEmpty(n) || !!n.deletedAt);
+      const activeNotes = notes.filter((n) => !n.deletedAt);
 
-      if (notes.length === 0) {
-        notes = DEFAULT_NOTES;
+      if (activeNotes.length === 0) {
+        notes = [...DEFAULT_NOTES, ...notes.filter((n) => !!n.deletedAt)];
         for (const n of DEFAULT_NOTES) {
           await noteRepository.save(n);
         }
@@ -346,6 +557,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         notes: [quickInitialNote, ...notes],
         folders,
         boardCards: rawBoardCards || [],
+        standaloneTasks: rawStandaloneTasks || [],
         activeFolderId: null,
         activeNoteId: quickInitialNote.id,
         openNoteIds: [quickInitialNote.id],
@@ -604,7 +816,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const toDelete: Note[] = [];
 
     notes.forEach((n) => {
-      if (!isNoteEmpty(n) || n.id === activeNoteId) {
+      if (n.deletedAt || !isNoteEmpty(n) || n.id === activeNoteId) {
         nonEmpty.push(n);
       } else {
         toDelete.push(n);
@@ -636,16 +848,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteNote: async (noteId: string) => {
     flushPendingSave();
     try {
-      await noteRepository.delete(noteId);
       const { notes, activeNoteId, openNoteIds } = get();
-      const updatedNotes = notes.filter((n) => n.id !== noteId);
+      const target = notes.find((n) => n.id === noteId);
+      if (!target) return;
+
+      const updatedNote: Note = { ...target, deletedAt: Date.now(), updatedAt: Date.now() };
+      await noteRepository.save(updatedNote);
+
+      const updatedNotes = notes.map((n) => (n.id === noteId ? updatedNote : n));
       const updatedOpenIds = openNoteIds.filter((id) => id !== noteId);
 
+      const nonDeleted = updatedNotes.filter((n) => !n.deletedAt);
       let nextActiveId = activeNoteId;
       if (activeNoteId === noteId) {
         nextActiveId = updatedOpenIds.length > 0
           ? updatedOpenIds[0]
-          : (updatedNotes.length > 0 ? updatedNotes[0].id : '');
+          : (nonDeleted.length > 0 ? nonDeleted[0].id : '');
       }
 
       set({
@@ -657,7 +875,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         splitView: updatedOpenIds.length < 2 ? false : get().splitView,
       });
 
-      if (updatedNotes.length === 0) {
+      if (nonDeleted.length === 0) {
         await get().createNote();
       }
     } catch (err) {
