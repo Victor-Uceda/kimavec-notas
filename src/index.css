@@ -1,0 +1,348 @@
+@import '@flaticon/flaticon-uicons/css/regular/rounded.css';
+@import '@flaticon/flaticon-uicons/css/solid/rounded.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #F5F6F8;
+    color: #111827;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #E5E7EB;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #D1D5DB;
+  }
+}
+
+/* Liquid Glass & Glassmorphism System Styles */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 12px 32px -4px rgba(0, 0, 0, 0.05),
+    0 4px 12px -2px rgba(0, 0, 0, 0.025),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02);
+}
+
+.liquid-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.68) 100%);
+  backdrop-filter: blur(30px) saturate(210%);
+  -webkit-backdrop-filter: blur(30px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 24px 48px -12px rgba(0, 0, 0, 0.08),
+    0 8px 24px -4px rgba(0, 0, 0, 0.03),
+    inset 0 2px 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02);
+}
+
+.liquid-glass-pill {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px) saturate(190%);
+  -webkit-backdrop-filter: blur(18px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 
+    0 4px 16px 0 rgba(0, 0, 0, 0.04),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* TipTap ProseMirror Styles con Tokens de Diseño */
+.ProseMirror {
+  outline: none;
+  min-height: 250px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  color: #111827;
+}
+
+.ProseMirror p {
+  margin-bottom: 0.65rem;
+}
+
+.ProseMirror h1 {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 24px;
+  color: #111827;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror h2 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  color: #111827;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 2.5px solid #E5E7EB;
+  padding-left: 0.85rem;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: #6B7280;
+}
+
+/* Bloques de Código Nerd / Hacker con JetBrains Mono */
+.ProseMirror pre {
+  background: #0F172A;
+  color: #E2E8F0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 22px;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin: 1rem 0;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ProseMirror pre code {
+  color: inherit;
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  font-family: inherit;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  display: block;
+}
+
+/* Coloreo de Sintaxis (Syntax Highlighting) para Código Nerd */
+.ProseMirror pre .hljs-comment,
+.ProseMirror pre .hljs-quote {
+  color: #64748B;
+  font-style: italic;
+}
+
+.ProseMirror pre .hljs-variable,
+.ProseMirror pre .hljs-template-variable,
+.ProseMirror pre .hljs-tag,
+.ProseMirror pre .hljs-name,
+.ProseMirror pre .hljs-selector-id,
+.ProseMirror pre .hljs-selector-class,
+.ProseMirror pre .hljs-regexp,
+.ProseMirror pre .hljs-deletion {
+  color: #F43F5E;
+}
+
+.ProseMirror pre .hljs-number,
+.ProseMirror pre .hljs-built_in,
+.ProseMirror pre .hljs-literal,
+.ProseMirror pre .hljs-type,
+.ProseMirror pre .hljs-params,
+.ProseMirror pre .hljs-meta,
+.ProseMirror pre .hljs-link {
+  color: #F59E0B;
+}
+
+.ProseMirror pre .hljs-attribute {
+  color: #EAB308;
+}
+
+.ProseMirror pre .hljs-string,
+.ProseMirror pre .hljs-symbol,
+.ProseMirror pre .hljs-bullet,
+.ProseMirror pre .hljs-addition {
+  color: #10B981;
+}
+
+.ProseMirror pre .hljs-title,
+.ProseMirror pre .hljs-section {
+  color: #60A5FA;
+  font-weight: 600;
+}
+
+.ProseMirror pre .hljs-keyword,
+.ProseMirror pre .hljs-selector-tag {
+  color: #C084FC;
+  font-weight: 600;
+}
+
+.ProseMirror pre .hljs-function {
+  color: #38BDF8;
+}
+
+/* Código inline con tipografía nerd */
+.ProseMirror code:not(pre code) {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0F172A;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+/* Listas de Tareas en TipTap */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  user-select: none;
+  margin-top: 0.15rem;
+  cursor: pointer;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #0D0D0D;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  color: #9CA3AF;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #9CA3AF;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Píldoras de Enlace Inteligente [[Título]] */
+.wikilink-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.15rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: text;
+  vertical-align: baseline;
+}
+
+.wikilink-pill.wikilink-connected {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.wikilink-pill.wikilink-connected:hover {
+  background: #F8FAFC;
+  border-color: #10B981;
+  color: #047857;
+  box-shadow: 0 2px 6px -1px rgba(16, 185, 129, 0.2);
+  transform: translateY(-0.5px);
+}
+
+/* Indicador visual de conexión exitosa */
+.wikilink-pill.wikilink-connected::after {
+  content: " ✓";
+  font-size: 10px;
+  font-weight: 700;
+  color: #10B981;
+  margin-left: 2px;
+}
+
+.wikilink-pill.wikilink-unresolved {
+  background: #F8FAFC;
+  color: #64748B;
+  border: 1px dashed #CBD5E1;
+}
+
+.wikilink-pill.wikilink-unresolved:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #1E293B;
+}
+
+/* Píldora #tema (idéntica a la imagen de referencia) */
+.tag-pill {
+  display: inline-block;
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.15rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  vertical-align: baseline;
+}
+
+/* Píldora @persona (idéntica a la imagen de referencia) */
+.mention-pill {
+  display: inline-block;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.15rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  vertical-align: baseline;
+}
+
