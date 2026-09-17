@@ -11,7 +11,8 @@ interface GraphCanvasProps {
 const GUIDE_DISMISSED_KEY = 'has_dismissed_graph_guide';
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
-  const { notes, activeNoteId, selectNote, setNav, cleanEmptyNotes } = useAppStore();
+  const { notes, activeNoteId, selectNote, setNav, cleanEmptyNotes, theme } = useAppStore();
+  const isDark = theme === 'dark';
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Estados de vista y controles
@@ -216,7 +217,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
         if (isActiveNote || isHovered) {
           ctx.beginPath();
           ctx.arc(node.x, node.y, node.radius + 7, 0, Math.PI * 2);
-          ctx.fillStyle = isActiveNote ? 'rgba(0, 0, 0, 0.08)' : 'rgba(79, 70, 229, 0.1)';
+          ctx.fillStyle = isActiveNote
+            ? isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)'
+            : isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(79, 70, 229, 0.1)';
           ctx.fill();
         }
 
@@ -234,16 +237,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
             node.radius
           );
           if (isActiveNote) {
-            nodeGrad.addColorStop(0, '#2D3748');
-            nodeGrad.addColorStop(1, '#0D0D0D');
+            nodeGrad.addColorStop(0, isDark ? '#60A5FA' : '#2D3748');
+            nodeGrad.addColorStop(1, isDark ? '#1E3A8A' : '#0D0D0D');
           } else {
-            nodeGrad.addColorStop(0, '#4A5568');
-            nodeGrad.addColorStop(1, '#1A202C');
+            nodeGrad.addColorStop(0, isDark ? '#4B5563' : '#4A5568');
+            nodeGrad.addColorStop(1, isDark ? '#1F2937' : '#1A202C');
           }
           ctx.fillStyle = nodeGrad;
           ctx.fill();
           ctx.lineWidth = isActiveNote ? 2.5 : 1.5;
-          ctx.strokeStyle = isActiveNote ? '#718096' : '#2D3748';
+          ctx.strokeStyle = isActiveNote ? (isDark ? '#93C5FD' : '#718096') : (isDark ? '#374151' : '#2D3748');
           ctx.stroke();
         } else if (node.type === 'tag') {
           ctx.fillStyle = '#059669';
@@ -255,7 +258,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
 
         // Etiqueta tipográfica limpia
         ctx.font = node.type === 'note' ? '600 12px Inter, sans-serif' : '500 11px Inter, sans-serif';
-        ctx.fillStyle = '#111827';
+        ctx.fillStyle = isDark ? '#F9FAFB' : '#111827';
         ctx.textAlign = 'center';
         ctx.fillText(node.label, node.x, node.y + node.radius + 14);
       });
@@ -266,7 +269,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
 
     render();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [pan, zoom, hoveredNodeId, activeNoteId]);
+  }, [pan, zoom, hoveredNodeId, activeNoteId, isDark]);
 
   // Localizar nodo bajo el cursor
   const getNodeAtPos = (clientX: number, clientY: number): GraphNode | null => {
@@ -449,7 +452,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({ onClose }) => {
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
         onClick={handleClick}
-        className="w-full h-full bg-[#FAFBFD] cursor-grab active:cursor-grabbing absolute inset-0"
+        className="w-full h-full bg-app-canvas cursor-grab active:cursor-grabbing absolute inset-0"
       />
     </div>
   );

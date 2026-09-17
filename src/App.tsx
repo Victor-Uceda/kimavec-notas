@@ -4,18 +4,15 @@ import { Dock } from './features/dock/Dock';
 import { NoteEditor } from './features/editor/NoteEditor';
 import { NoteTabsBar } from './features/editor/NoteTabsBar';
 import { OpenOrCreateModal } from './features/editor/OpenOrCreateModal';
-import { TaskPanel } from './features/tasks/TaskPanel';
 import { CommandPalette } from './features/search/CommandPalette';
 import { GraphCanvas } from './features/graph/GraphCanvas';
 import { SettingsModal } from './features/settings/SettingsModal';
 import { FolderSidebar } from './features/folders/FolderSidebar';
 import { FolderEmptyState } from './features/folders/FolderEmptyState';
 import { NotesBoardView } from './features/board/NotesBoardView';
-import { TodoView } from './features/tasks/TodoView';
 import { TrashModal } from './features/trash/TrashModal';
 import { HomeQuickNoteView } from './features/notes/HomeQuickNoteView';
 import { useAppStore } from './store/useAppStore';
-import { extractTasksFromMarkdown } from './utils/taskParser';
 
 export default function App() {
   const {
@@ -28,28 +25,21 @@ export default function App() {
     openNoteIds,
     splitView,
     activePane,
-    taskFilter,
     isLoading,
-    isTaskPanelOpen,
-    toggleTaskPanel,
     setNav,
-    setTaskFilter,
     setSearchOpen,
-    setAddModalOpen,
     setActivePane,
     loadNotes,
     selectNote,
     closeNoteTab,
     createNote,
     deleteNote,
-    cleanEmptyNotes,
     updateNote,
-    toggleTask,
-    deleteTask,
-    clearCompletedTasks,
-    addManualTask,
     persistenceError,
     setPersistenceError,
+    mobileView,
+    isSettingsOpen,
+    setSettingsOpen,
   } = useAppStore();
 
   useEffect(() => {
@@ -76,19 +66,6 @@ export default function App() {
     return activeNotes.find((n) => n.id === targetId) || null;
   }, [splitView, secondaryNoteId, openNoteIds, activeNote?.id, activeNotes]);
 
-  // Nota enfocada actualmente: cambia si estás en Panel 1 o Panel 2
-  const focusedNote = useMemo(() => {
-    if (splitView && activePane === 'right' && secondaryNote) {
-      return secondaryNote;
-    }
-    return activeNote;
-  }, [splitView, activePane, secondaryNote, activeNote]);
-
-  // Tareas extraídas reactivamente del cuerpo de la nota seleccionada
-  const currentTasks = useMemo(() => {
-    if (!focusedNote) return [];
-    return extractTasksFromMarkdown(focusedNote.content, focusedNote.id);
-  }, [focusedNote]);
 
   const activeFolderName = useMemo(() => {
     if (!activeFolderId) return undefined;
@@ -109,19 +86,8 @@ export default function App() {
         dock={
           <Dock
             activeItem={activeNav}
-            notes={activeNotes}
-            activeNoteId={activeNote?.id || ''}
             onSelectItem={setNav}
-            onSelectNote={selectNote}
-            onCreateNote={async () => {
-              const newId = await createNote();
-              selectNote(newId);
-              setNav('notes');
-            }}
-            onOpenAddModal={() => setAddModalOpen(true)}
-            onDeleteNote={deleteNote}
-            onCleanEmptyNotes={cleanEmptyNotes}
-            onOpenSearch={() => setSearchOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         }
         editor={
@@ -129,38 +95,41 @@ export default function App() {
             <HomeQuickNoteView onOpenNotes={() => setNav('notes')} />
           ) : activeNav === 'canvas' ? (
             <GraphCanvas onClose={() => setNav('notes')} />
-          ) : activeNav === 'board' ? (
+          ) : activeNav === 'board' || activeNav === 'todo' ? (
             <NotesBoardView
               onOpenNote={(noteId) => {
                 selectNote(noteId);
                 setNav('notes');
               }}
             />
-          ) : activeNav === 'todo' ? (
-            <TodoView
-              onOpenNote={(noteId) => {
-                selectNote(noteId);
-                setNav('notes');
-              }}
-            />
           ) : (
-            <div className="flex-1 h-full flex overflow-hidden rounded-sheet shadow-sheet border border-app-border-subtle bg-white">
+            <div className="flex-1 h-full flex overflow-hidden rounded-sheet shadow-sheet border border-app-border-subtle bg-app-editor">
               {/* Barra lateral de carpetas en vista Notas */}
-              <FolderSidebar
-                onSelectNote={selectNote}
-                activeNoteId={activeNote?.id}
-                onOpenSearch={() => setSearchOpen(true)}
-              />
+              <div
+                className={`h-full ${
+                  mobileView === 'editor' && activeNote ? 'hidden md:flex' : 'flex'
+                } w-full md:w-64 shrink-0`}
+              >
+                <FolderSidebar
+                  onSelectNote={selectNote}
+                  activeNoteId={activeNote?.id}
+                  onOpenSearch={() => setSearchOpen(true)}
+                />
+              </div>
 
               {/* Área central: Editor o Estado Vacío */}
-              <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden bg-app-canvas">
+              <div
+                className={`flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden bg-app-canvas ${
+                  !activeNote || mobileView === 'list' ? 'hidden md:flex' : 'flex'
+                }`}
+              >
                 {activeNote ? (
-                  <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden bg-white">
+                  <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden bg-app-editor">
                     {/* Barra de pestañas de notas abiertas */}
                     <NoteTabsBar />
 
                     {/* Área del editor: simple o dividida */}
-                    <div className="flex-1 min-h-0 flex overflow-hidden">
+                    <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
                       <div
                         onPointerDownCapture={() => setActivePane('left')}
                         onFocusCapture={() => setActivePane('left')}
@@ -219,26 +188,16 @@ export default function App() {
             </div>
           )
         }
-        tasks={
-          isTaskPanelOpen && focusedNote && (activeNav === 'notes' || activeNav === 'home') ? (
-            <TaskPanel
-              noteTitle={focusedNote.title}
-              tasks={currentTasks}
-              filter={taskFilter}
-              onChangeFilter={setTaskFilter}
-              onToggleTask={toggleTask}
-              onDeleteTask={deleteTask}
-              onClearCompleted={clearCompletedTasks}
-              onAddTask={addManualTask}
-              onClose={() => toggleTaskPanel(false)}
-            />
-          ) : undefined
-        }
       />
       <CommandPalette />
       <SettingsModal
-        isOpen={activeNav === 'settings'}
-        onClose={() => setNav('notes')}
+        isOpen={isSettingsOpen || activeNav === 'settings'}
+        onClose={() => {
+          setSettingsOpen(false);
+          if (activeNav === 'settings') {
+            setNav('notes');
+          }
+        }}
       />
       <OpenOrCreateModal />
       <TrashModal />

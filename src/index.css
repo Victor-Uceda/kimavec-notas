@@ -8,6 +8,41 @@
 @layer base {
   :root {
     color-scheme: light;
+    --app-canvas: #F5F6F8;
+    --app-editor: #FFFFFF;
+    --app-sidebar: #FBFBFD;
+    --app-active-pill: #E8EAED;
+    --app-border-subtle: #E5E7EB;
+    --app-action-primary: #0D0D0D;
+    --app-action-primary-hover: #262626;
+    --app-action-primary-text: #FFFFFF;
+    --app-text-primary: #111827;
+    --app-text-secondary: #6B7280;
+    --app-text-disabled: #9CA3AF;
+    --app-badge-high-bg: #FEE2E2;
+    --app-badge-high-text: #B91C1C;
+    --app-badge-tag-bg: #F3F4F6;
+    --app-badge-tag-text: #4B5563;
+  }
+
+  .dark {
+    color-scheme: dark;
+    /* OLED Deep Dark Theme inspired by Ejemplo.html */
+    --app-canvas: #000000;
+    --app-editor: #0A0A0A;
+    --app-sidebar: #0F0F0F;
+    --app-active-pill: #1F1F23;
+    --app-border-subtle: #27272A;
+    --app-action-primary: #FFFFFF;
+    --app-action-primary-hover: #E5E7EB;
+    --app-action-primary-text: #000000;
+    --app-text-primary: #F9FAFB;
+    --app-text-secondary: #9CA3AF;
+    --app-text-disabled: #52525B;
+    --app-badge-high-bg: rgba(239, 68, 68, 0.2);
+    --app-badge-high-text: #F87171;
+    --app-badge-tag-bg: rgba(255, 255, 255, 0.08);
+    --app-badge-tag-text: #D1D5DB;
   }
 
   html,
@@ -17,8 +52,9 @@
     width: 100%;
     margin: 0;
     padding: 0;
-    background-color: #F5F6F8;
-    color: #111827;
+    background-color: var(--app-canvas);
+    color: var(--app-text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   /* Custom subtle scrollbar */
@@ -30,11 +66,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #E5E7EB;
+    background: var(--app-border-subtle);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #D1D5DB;
+    background: var(--app-text-secondary);
   }
 }
 
@@ -51,6 +87,17 @@
     inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 
+.dark .liquid-glass {
+  background: rgba(15, 15, 15, 0.8);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 16px 36px -4px rgba(0, 0, 0, 0.6),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
 .liquid-glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.68) 100%);
   backdrop-filter: blur(30px) saturate(210%);
@@ -63,6 +110,18 @@
     inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 
+.dark .liquid-glass-card {
+  background: linear-gradient(135deg, rgba(20, 20, 24, 0.88) 0%, rgba(12, 12, 14, 0.8) 100%);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 24px 48px -12px rgba(0, 0, 0, 0.8),
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
 .liquid-glass-pill {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(18px) saturate(190%);
@@ -71,6 +130,16 @@
   box-shadow: 
     0 4px 16px 0 rgba(0, 0, 0, 0.04),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.dark .liquid-glass-pill {
+  background: rgba(26, 26, 30, 0.82);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 4px 16px 0 rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* TipTap ProseMirror Styles con Tokens de Diseño */
@@ -344,5 +413,72 @@
   font-weight: 600;
   line-height: 1.35;
   vertical-align: baseline;
+}
+
+/* Reglas Dark Mode para ProseMirror y Smart Pills */
+.dark .ProseMirror {
+  color: #F9FAFB;
+}
+
+.dark .ProseMirror h1,
+.dark .ProseMirror h2 {
+  color: #FFFFFF;
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: #3F3F46;
+  color: #9CA3AF;
+}
+
+.dark .ProseMirror code:not(pre code) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #F4F4F5;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dark .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: #52525B;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #52525B;
+}
+
+.dark .wikilink-pill.wikilink-connected {
+  background: #18181B;
+  color: #F4F4F5;
+  border-color: #3F3F46;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.dark .wikilink-pill.wikilink-connected:hover {
+  background: #27272A;
+  border-color: #10B981;
+  color: #34D399;
+  box-shadow: 0 2px 8px -1px rgba(16, 185, 129, 0.3);
+}
+
+.dark .wikilink-pill.wikilink-unresolved {
+  background: #18181B;
+  color: #9CA3AF;
+  border-color: #3F3F46;
+}
+
+.dark .wikilink-pill.wikilink-unresolved:hover {
+  background: #27272A;
+  border-color: #64748B;
+  color: #E2E8F0;
+}
+
+.dark .tag-pill {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dark .mention-pill {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818CF8;
+  border-color: rgba(99, 102, 241, 0.3);
 }
 

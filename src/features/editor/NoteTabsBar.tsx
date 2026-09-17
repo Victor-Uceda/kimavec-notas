@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export const NoteTabsBar: React.FC = () => {
@@ -32,7 +33,7 @@ export const NoteTabsBar: React.FC = () => {
   }
 
   return (
-    <div className="flex items-center justify-between px-2 py-1.5 border-b border-black/[0.06] bg-white/40 backdrop-blur-md select-none">
+    <div className="flex items-center justify-between px-2 py-1.5 border-b border-app-border-subtle bg-app-sidebar/60 backdrop-blur-md select-none">
       {/* Lista de pestañas desplazable */}
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[calc(100%-140px)]">
         {activeOpenNoteIds.map((id) => {
@@ -52,23 +53,23 @@ export const NoteTabsBar: React.FC = () => {
               onClick={() => selectNote(id)}
               className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer border ${
                 isFocusedPane
-                  ? 'bg-white/95 text-app-text-primary font-medium shadow-sm border-black/[0.12] ring-1 ring-black/5'
+                  ? 'bg-app-editor text-app-text-primary font-medium shadow-sm border-app-border-subtle ring-1 ring-black/5 dark:ring-white/10'
                   : isActive
-                  ? 'bg-white/80 text-app-text-primary font-medium border-black/[0.06]'
-                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-white/50 border-transparent'
+                  ? 'bg-app-editor/80 text-app-text-primary font-medium border-app-border-subtle/60'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-app-editor/50 border-transparent'
               }`}
               title={displayTitle}
             >
-              <i className={`fi fi-rr-document text-xs leading-none shrink-0 ${isActive ? 'text-app-accent font-semibold' : 'opacity-60'}`} />
+              <i className={`fi fi-rr-document text-xs leading-none shrink-0 ${isActive ? 'text-app-action-primary font-semibold' : 'opacity-60'}`} />
               <span className="truncate max-w-[130px]">{displayTitle}</span>
 
               {splitView && isLeft && (
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/10 text-app-text-primary">
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-app-active-pill text-app-text-primary">
                   Panel 1
                 </span>
               )}
               {splitView && isRight && (
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/10 text-app-text-primary">
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-app-active-pill text-app-text-primary">
                   Panel 2
                 </span>
               )}
@@ -80,7 +81,7 @@ export const NoteTabsBar: React.FC = () => {
                   e.stopPropagation();
                   closeNoteTab(id);
                 }}
-                className="w-4 h-4 rounded flex items-center justify-center opacity-40 hover:opacity-100 hover:bg-black/10 transition-opacity ml-0.5"
+                className="w-4 h-4 rounded flex items-center justify-center opacity-40 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity ml-0.5"
               >
                 <i className="fi fi-rr-cross-small text-xs leading-none" />
               </button>
@@ -94,9 +95,9 @@ export const NoteTabsBar: React.FC = () => {
           onClick={() => setAddModalOpen(true)}
           aria-label="Añadir pestaña"
           title="Añadir pestaña (+)"
-          className="p-1.5 rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-white/60 transition-colors flex items-center justify-center"
+          className="p-1.5 rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors inline-flex items-center justify-center"
         >
-          <i className="fi fi-rr-plus text-xs leading-none" />
+          <Plus className="w-3.5 h-3.5 stroke-[2.2] shrink-0" />
         </button>
       </div>
 
@@ -108,7 +109,7 @@ export const NoteTabsBar: React.FC = () => {
             onClick={closeAllTabs}
             aria-label="Cerrar todas las notas"
             title="Cerrar todas las notas"
-            className="px-2 py-1 rounded-lg text-[11px] text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+            className="px-2 py-1 rounded-lg text-[11px] text-app-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
           >
             Cerrar todas
           </button>
@@ -123,8 +124,8 @@ export const NoteTabsBar: React.FC = () => {
             title={splitView ? 'Vista única' : 'Ver varias notas al mismo tiempo'}
             className={`p-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs ${
               splitView
-                ? 'bg-black text-white shadow-sm font-medium'
-                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-white/60'
+                ? 'bg-app-action-primary text-app-action-primary-text shadow-sm font-medium'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10'
             }`}
           >
             <i className="fi fi-rr-columns-3 text-xs leading-none" />

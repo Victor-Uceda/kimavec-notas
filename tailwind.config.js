@@ -1,30 +1,33 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         app: {
-          canvas: '#F5F6F8',
-          editor: '#FFFFFF',
-          sidebar: '#FBFBFD',
-          'active-pill': '#E8EAED',
+          canvas: 'var(--app-canvas)',
+          editor: 'var(--app-editor)',
+          sidebar: 'var(--app-sidebar)',
+          'active-pill': 'var(--app-active-pill)',
           border: {
-            subtle: '#E5E7EB',
+            subtle: 'var(--app-border-subtle)',
           },
           action: {
-            primary: '#0D0D0D',
+            primary: 'var(--app-action-primary)',
+            'primary-hover': 'var(--app-action-primary-hover)',
+            'primary-text': 'var(--app-action-primary-text)',
           },
           text: {
-            primary: '#111827',
-            secondary: '#6B7280',
-            disabled: '#9CA3AF',
+            primary: 'var(--app-text-primary)',
+            secondary: 'var(--app-text-secondary)',
+            disabled: 'var(--app-text-disabled)',
           },
           badge: {
-            highBg: '#FEE2E2',
-            highText: '#B91C1C',
-            tagBg: '#F3F4F6',
-            tagText: '#4B5563',
+            highBg: 'var(--app-badge-high-bg)',
+            highText: 'var(--app-badge-high-text)',
+            tagBg: 'var(--app-badge-tag-bg)',
+            tagText: 'var(--app-badge-tag-text)',
           },
         },
       },

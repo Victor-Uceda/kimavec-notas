@@ -244,7 +244,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       />
 
       {/* Hoja física de escritura */}
-      <div className="flex-1 overflow-y-auto px-10 py-7 flex flex-col">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-7 flex flex-col">
         <input
           ref={titleInputRef}
           type="text"
@@ -272,9 +272,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       </div>
 
       {/* Botón flotante circular de guardado automático en esquina inferior derecha */}
-      <div className="absolute bottom-6 right-6 z-20 select-none">
+      <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 select-none">
         <div
-          className="w-10 h-10 rounded-full bg-[#F1F2F5] hover:bg-[#E5E7EB] border border-black/[0.06] flex items-center justify-center text-app-text-secondary transition-all shadow-2xs group cursor-default"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-app-active-pill hover:bg-black/10 dark:hover:bg-white/10 border border-app-border-subtle flex items-center justify-center text-app-text-secondary transition-all shadow-2xs group cursor-default"
           title={saveStatus === 'saved' ? 'Guardado automáticamente' : 'Guardando...'}
         >
           <CloudCheck

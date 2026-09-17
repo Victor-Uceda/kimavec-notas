@@ -3,7 +3,6 @@ import type { Editor } from '@tiptap/react';
 import {
   X,
   FileText,
-  ShieldCheck,
   Info,
   FolderInput,
   Trash2,
@@ -38,7 +37,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenGraph,
   onDeleteNote,
 }) => {
-  const { isTaskPanelOpen, toggleTaskPanel, folders, moveNoteToFolder } = useAppStore();
+  const { folders, moveNoteToFolder, setMobileView } = useAppStore();
   const [showFolderMenu, setShowFolderMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -84,15 +83,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col select-none bg-white relative shrink-0">
-      {/* 1. Fila Superior: Botón Cerrar (X) a la izquierda y Acciones a la derecha */}
-      <div className="h-11 px-6 flex items-center justify-between">
-        {/* Botón Cerrar (X) */}
-        <div>
+    <div className="w-full flex flex-col select-none bg-app-editor border-b border-app-border-subtle/50 relative shrink-0">
+      {/* 1. Fila Superior: Botón Volver (móvil) / Cerrar (X) a la izquierda y Acciones a la derecha */}
+      <div className="h-11 px-3 sm:px-6 flex items-center justify-between">
+        {/* Botón Volver (móvil) + Botón Cerrar (X) */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMobileView('list')}
+            className="md:hidden flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            title="Volver a la lista de carpetas"
+          >
+            <i className="fi fi-rr-angle-small-left text-base leading-none" />
+            <span>Carpetas</span>
+          </button>
+
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             title="Cerrar nota"
           >
             <X className="w-4 h-4 stroke-[2.2]" />
@@ -111,19 +120,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <FileText className="w-4 h-4 stroke-[1.8]" />
           </button>
 
-          {/* Escudo / Panel de Tareas */}
-          <button
-            type="button"
-            onClick={() => toggleTaskPanel()}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
-              isTaskPanelOpen
-                ? 'bg-app-action-primary text-white shadow-2xs'
-                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5'
-            }`}
-            title={isTaskPanelOpen ? 'Ocultar panel de tareas' : 'Abrir panel de tareas'}
-          >
-            <ShieldCheck className="w-4 h-4 stroke-[1.8]" />
-          </button>
 
           {/* Información de la nota (i) */}
           <div className="relative">
@@ -252,8 +248,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       </div>
 
       {/* 2. Segunda Fila: Barra cápsula flotante con los iconos exactos de formato */}
-      <div className="px-6 py-1 flex items-center">
-        <div className="w-full bg-[#F1F2F5] border border-black/[0.04] rounded-2xl px-3 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar shadow-2xs">
+      <div className="px-3 sm:px-6 py-1 flex items-center">
+        <div className="w-full bg-app-canvas dark:bg-[#121214] border border-app-border-subtle rounded-2xl px-2.5 sm:px-3 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar shadow-2xs">
           {/* Deshacer */}
           <button
             type="button"

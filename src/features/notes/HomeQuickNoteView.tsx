@@ -85,18 +85,18 @@ export const HomeQuickNoteView: React.FC<HomeQuickNoteViewProps> = ({ onOpenNote
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col items-center justify-center p-6 bg-app-canvas select-none relative overflow-y-auto">
+    <div className="flex-1 h-full flex flex-col items-center justify-center p-3 sm:p-6 bg-app-canvas select-none relative overflow-y-auto">
       {/* Lienzo flotante central estilo Ejemplo.html */}
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-app-border-subtle flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-2xl bg-app-editor rounded-2xl shadow-xl border border-app-border-subtle flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Cabecera del lienzo flotante */}
-        <header className="px-6 py-4 border-b border-app-border-subtle flex items-center justify-between bg-white">
+        <header className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-app-border-subtle flex items-center justify-between bg-app-editor">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-bold text-app-text-primary tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-app-text-primary tracking-tight">
               Nota rápida
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Indicador de guardado en tiempo real (cloud_done) */}
             <div
               className="flex items-center gap-1.5 text-xs text-app-text-secondary transition-opacity"
@@ -107,7 +107,7 @@ export const HomeQuickNoteView: React.FC<HomeQuickNoteViewProps> = ({ onOpenNote
                   saveStatus === 'saved' ? 'text-emerald-600' : 'text-amber-500 animate-pulse'
                 }`}
               />
-              <span className="text-[11px] font-medium">
+              <span className="hidden sm:inline text-[11px] font-medium">
                 {saveStatus === 'saved' ? 'Guardado' : 'Guardando...'}
               </span>
             </div>
@@ -115,23 +115,23 @@ export const HomeQuickNoteView: React.FC<HomeQuickNoteViewProps> = ({ onOpenNote
             <button
               type="button"
               onClick={handleConvertToNote}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-action-primary text-white text-xs font-medium hover:opacity-90 transition-opacity shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-action-primary text-app-action-primary-text text-xs font-medium hover:opacity-90 transition-opacity shadow-sm"
               title="Guardar en mis notas y organizar"
             >
               <i className="fi fi-rr-folder-download text-xs leading-none" />
-              <span>Guardar como nota</span>
+              <span>Guardar</span>
             </button>
           </div>
         </header>
 
         {/* Barra de herramientas sutil */}
         {editor && (
-          <div className="px-6 py-2 border-b border-app-border-subtle/50 flex items-center gap-1 bg-[#FAFAFC] overflow-x-auto text-xs">
+          <div className="px-4 sm:px-6 py-2 border-b border-app-border-subtle/50 flex items-center gap-1 bg-app-sidebar/50 overflow-x-auto text-xs">
             <button
               type="button"
               onClick={() => editor.chain().focus().toggleBold().run()}
               className={`p-1.5 rounded-lg transition-colors ${
-                editor.isActive('bold') ? 'bg-black/10 text-black' : 'text-app-text-secondary hover:bg-black/5'
+                editor.isActive('bold') ? 'bg-app-active-pill text-app-text-primary' : 'text-app-text-secondary hover:bg-black/5 dark:hover:bg-white/10'
               }`}
               title="Negrita"
             >
@@ -141,20 +141,20 @@ export const HomeQuickNoteView: React.FC<HomeQuickNoteViewProps> = ({ onOpenNote
               type="button"
               onClick={() => editor.chain().focus().toggleItalic().run()}
               className={`p-1.5 rounded-lg transition-colors ${
-                editor.isActive('italic') ? 'bg-black/10 text-black' : 'text-app-text-secondary hover:bg-black/5'
+                editor.isActive('italic') ? 'bg-app-active-pill text-app-text-primary' : 'text-app-text-secondary hover:bg-black/5 dark:hover:bg-white/10'
               }`}
               title="Cursiva"
             >
               <i className="fi fi-rr-italic text-xs leading-none" />
             </button>
 
-            <div className="h-3.5 w-px bg-black/10 mx-1" />
+            <div className="h-3.5 w-px bg-app-border-subtle mx-1" />
 
             <button
               type="button"
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               className={`p-1.5 rounded-lg transition-colors ${
-                editor.isActive('bulletList') ? 'bg-black/10 text-black' : 'text-app-text-secondary hover:bg-black/5'
+                editor.isActive('bulletList') ? 'bg-app-active-pill text-app-text-primary' : 'text-app-text-secondary hover:bg-black/5 dark:hover:bg-white/10'
               }`}
               title="Viñetas"
             >

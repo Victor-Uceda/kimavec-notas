@@ -17,7 +17,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({ checked, onChange, ariaLabel
       onClick={() => onChange(!checked)}
       className={`relative flex items-center justify-center w-[18px] h-[18px] rounded-checkbox transition-colors duration-150 shrink-0 ${
         checked
-          ? 'bg-app-action-primary text-white border border-app-action-primary'
+          ? 'bg-app-action-primary text-app-action-primary-text border border-app-action-primary'
           : 'bg-transparent border-[1.5px] border-app-border-subtle hover:border-app-text-secondary'
       }`}
     >

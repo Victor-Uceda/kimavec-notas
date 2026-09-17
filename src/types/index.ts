@@ -41,6 +41,7 @@ export interface BoardCard {
   status: NoteStatus;
   linkedNoteId?: string;
   dueDate?: string;
+  completed?: boolean;
   createdAt: number;
   updatedAt: number;
   deletedAt?: number;
@@ -58,3 +59,5 @@ export interface Note {
 }
 
 export type NavigationItem = 'home' | 'notes' | 'board' | 'todo' | 'canvas' | 'settings';
+
+export type Theme = 'light' | 'dark';

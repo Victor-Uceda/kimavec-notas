@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Plus } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import type { Folder, Note } from '../../types';
 
@@ -33,6 +34,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   // Estados para crear o renombrar carpeta
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
   const [isCreatingSubfolderForId, setIsCreatingSubfolderForId] = useState<string | null>(null);
   const [subfolderName, setSubfolderName] = useState('');
 
@@ -75,15 +77,25 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     setTimeout(() => setStatusNotification(null), 2400);
   };
 
+  const handleOpenCreateFolder = (defaultParentId?: string | null) => {
+    setIsCreatingFolder(true);
+    setNewFolderParentId(defaultParentId !== undefined ? defaultParentId : (activeFolderId || null));
+  };
+
   const handleCreateFolder = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newFolderName.trim()) return;
     try {
-      const created = await createFolder(newFolderName.trim());
+      const created = await createFolder(newFolderName.trim(), newFolderParentId || undefined);
       setNewFolderName('');
       setIsCreatingFolder(false);
-      setExpandedFolders((prev) => ({ ...prev, [created.id]: true }));
-      notify('Carpeta creada');
+      setExpandedFolders((prev) => {
+        const next = { ...prev, [created.id]: true };
+        if (newFolderParentId) next[newFolderParentId] = true;
+        return next;
+      });
+      notify(newFolderParentId ? 'Subcarpeta creada' : 'Carpeta creada');
+      setNewFolderParentId(null);
     } catch {
       // Ignorar
     }
@@ -170,8 +182,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         onClick={() => onSelectNote(note.id)}
         className={`group/item flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-colors relative ${
           isNoteActive
-            ? 'bg-white text-app-text-primary font-medium shadow-2xs border border-black/5'
-            : 'text-app-text-secondary hover:bg-white/70 hover:text-app-text-primary'
+            ? 'bg-app-editor text-app-text-primary font-medium shadow-2xs border border-app-border-subtle'
+            : 'text-app-text-secondary hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text-primary'
         }`}
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -281,7 +293,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         {editingFolderId === folder.id ? (
           <form
             onSubmit={(e) => handleRenameFolder(folder.id, e)}
-            className="flex items-center gap-1 px-2 py-1 bg-white border border-black/15 rounded-lg shadow-sm"
+            className="flex items-center gap-1 px-2 py-1 bg-app-editor border border-app-border-subtle rounded-lg shadow-sm"
           >
             <input
               type="text"
@@ -347,10 +359,24 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               <span className="truncate">{folder.name}</span>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 text-app-text-secondary font-medium">
+            <div className="flex items-center gap-0.5 shrink-0">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-app-text-secondary font-medium mr-0.5">
                 {count}
               </span>
+
+              {/* Botón directo para crear subcarpeta dentro de esta carpeta */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCreatingSubfolderForId(folder.id);
+                  setExpandedFolders((prev) => ({ ...prev, [folder.id]: true }));
+                }}
+                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 text-app-text-secondary hover:text-app-text-primary rounded transition-colors flex items-center justify-center"
+                title={`Crear subcarpeta dentro de "${folder.name}"`}
+              >
+                <i className="fi fi-rr-add-folder text-xs leading-none" />
+              </button>
 
               {/* Menú de opciones de carpeta completo */}
               <div className="relative">
@@ -361,10 +387,10 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                     setFolderMenuId(folderMenuId === folder.id ? null : folder.id);
                     setFolderMoveMenuId(null);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-black/10 rounded transition-opacity flex items-center justify-center"
+                  className="p-1 hover:bg-black/10 dark:hover:bg-white/10 text-app-text-secondary hover:text-app-text-primary rounded transition-colors flex items-center justify-center"
                   title="Opciones de carpeta"
                 >
-                  <i className="fi fi-rr-menu-dots-vertical text-xs text-app-text-secondary leading-none" />
+                  <i className="fi fi-rr-menu-dots-vertical text-xs leading-none" />
                 </button>
 
                 {folderMenuId === folder.id && (
@@ -376,7 +402,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                         setFolderMenuId(null);
                       }}
                     />
-                    <div className="absolute right-0 top-6 w-44 liquid-glass-card border border-white/90 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute right-0 top-6 w-44 liquid-glass-card border border-app-border-subtle rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in zoom-in-95 duration-100">
                       {/* Crear nota dentro */}
                       <button
                         type="button"
@@ -388,7 +414,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                           onSelectNote(newId);
                           notify(`Nota creada en ${folder.name}`);
                         }}
-                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-black/5 text-app-text-primary"
+                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-app-active-pill text-app-text-primary"
                       >
                         <i className="fi fi-rr-edit text-xs leading-none text-blue-600" />
                         <span>Nueva nota dentro</span>
@@ -403,7 +429,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                           setIsCreatingSubfolderForId(folder.id);
                           setExpandedFolders((prev) => ({ ...prev, [folder.id]: true }));
                         }}
-                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-black/5 text-app-text-primary"
+                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-app-active-pill text-app-text-primary"
                       >
                         <i className="fi fi-rr-add-folder text-xs leading-none text-app-text-secondary" />
                         <span>Crear subcarpeta</span>
@@ -418,7 +444,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                           setEditingFolderName(folder.name);
                           setFolderMenuId(null);
                         }}
-                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-black/5 text-app-text-primary"
+                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-app-active-pill text-app-text-primary"
                       >
                         <i className="fi fi-rr-pencil text-xs leading-none text-app-text-secondary" />
                         <span>Renombrar</span>
@@ -432,19 +458,19 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                           setFolderMoveMenuId(folder.id);
                           setFolderMenuId(null);
                         }}
-                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-black/5 text-app-text-primary"
+                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-app-active-pill text-app-text-primary"
                       >
                         <i className="fi fi-rr-folder-download text-xs leading-none text-app-text-secondary" />
                         <span>Mover de ubicación</span>
                       </button>
 
-                      <div className="my-1 border-t border-black/5" />
+                      <div className="my-1 border-t border-app-border-subtle" />
 
                       {/* Eliminar (papelera) */}
                       <button
                         type="button"
                         onClick={(e) => handleDeleteFolder(folder, e)}
-                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-red-50 text-red-600"
+                        className="w-full px-2.5 py-1.5 text-left flex items-center gap-2 hover:bg-red-500/10 text-red-600 dark:text-red-400"
                       >
                         <i className="fi fi-rr-trash text-xs leading-none" />
                         <span>Enviar a papelera</span>
@@ -515,11 +541,11 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         {isCreatingSubfolderForId === folder.id && (
           <form
             onSubmit={(e) => handleCreateSubfolder(folder.id, e)}
-            className="ml-4 pl-2 my-1 p-2 bg-white border border-black/10 rounded-xl shadow-md animate-in fade-in"
+            className="ml-4 pl-2 my-1.5 p-2.5 bg-app-editor border border-app-border-subtle rounded-xl shadow-md animate-in fade-in"
           >
-            <div className="text-[11px] font-semibold text-app-text-primary mb-1 flex items-center gap-1">
+            <div className="text-[11px] font-semibold text-app-text-primary mb-1.5 flex items-center gap-1.5">
               <i className="fi fi-rr-add-folder text-blue-600 text-xs" />
-              <span>Nueva subcarpeta en {folder.name}</span>
+              <span>Nueva subcarpeta en "{folder.name}"</span>
             </div>
             <input
               type="text"
@@ -527,9 +553,9 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               value={subfolderName}
               onChange={(e) => setSubfolderName(e.target.value)}
               placeholder="Nombre de subcarpeta..."
-              className="w-full px-2 py-1 text-xs border border-app-border-subtle rounded-lg mb-1.5 focus:outline-none focus:border-black/30"
+              className="w-full px-2.5 py-1 text-xs border border-app-border-subtle bg-app-canvas text-app-text-primary rounded-lg mb-2 focus:outline-none focus:ring-1 focus:ring-app-action-primary"
             />
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-center justify-end gap-1.5">
               <button
                 type="button"
                 onClick={() => {
@@ -542,7 +568,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-2.5 py-0.5 text-xs bg-app-action-primary text-white rounded-md font-medium hover:opacity-90"
+                className="px-2.5 py-0.5 text-xs bg-app-action-primary text-app-action-primary-text rounded-md font-medium hover:opacity-90"
               >
                 Crear
               </button>
@@ -552,7 +578,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
 
         {/* Contenido anidado de la carpeta: subcarpetas y notas */}
         {isExpanded && (childFolders.length > 0 || folderNotes.length > 0) && (
-          <div className="ml-3.5 pl-2 border-l border-black/10 my-0.5 space-y-0.5">
+          <div className="ml-3.5 pl-2 border-l border-black/10 dark:border-white/10 my-0.5 space-y-0.5">
             {/* Subcarpetas anidadas */}
             {childFolders.map((sub) => renderFolderItem(sub, depth + 1))}
 
@@ -565,7 +591,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   };
 
   return (
-    <aside className="w-64 h-full bg-app-sidebar border-r border-app-border-subtle flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative">
+    <aside className="w-full md:w-64 h-full bg-app-sidebar border-r border-app-border-subtle flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative">
       {/* Cabecera superior limpia: Notas + botón Crear Carpeta */}
       <div className="p-3.5 border-b border-app-border-subtle flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -584,24 +610,24 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         {/* Botón superior "+ Crear carpeta" */}
         <button
           type="button"
-          onClick={() => setIsCreatingFolder(true)}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-app-active-pill text-app-text-primary text-xs font-medium hover:bg-black/10 transition-colors shadow-2xs"
+          onClick={() => handleOpenCreateFolder()}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-app-active-pill text-app-text-primary text-xs font-medium hover:bg-black/10 transition-colors shadow-2xs leading-none"
           title="Crear nueva carpeta"
         >
-          <i className="fi fi-rr-plus text-xs leading-none" />
+          <Plus className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
           <span>Crear carpeta</span>
         </button>
       </div>
 
-      {/* Input flotante para crear carpeta raíz */}
+      {/* Input flotante para crear carpeta */}
       {isCreatingFolder && (
         <form
           onSubmit={handleCreateFolder}
-          className="p-2.5 mx-2 my-1.5 bg-white border border-black/10 rounded-xl shadow-md animate-in fade-in"
+          className="p-3 mx-2 my-1.5 bg-app-editor border border-app-border-subtle rounded-xl shadow-md animate-in fade-in"
         >
-          <div className="text-xs font-semibold text-app-text-primary mb-1 flex items-center gap-1.5">
+          <div className="text-xs font-semibold text-app-text-primary mb-1.5 flex items-center gap-1.5">
             <i className="fi fi-rr-add-folder text-blue-600 text-sm leading-none" />
-            <span>Nueva carpeta</span>
+            <span>{newFolderParentId ? 'Nueva subcarpeta' : 'Nueva carpeta'}</span>
           </div>
           <input
             type="text"
@@ -609,14 +635,33 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             placeholder="Ej. Proyectos, Ideas..."
-            className="w-full px-2 py-1 text-xs border border-app-border-subtle rounded-lg mb-2 focus:outline-none focus:border-black/30"
+            className="w-full px-2.5 py-1 text-xs border border-app-border-subtle bg-app-canvas text-app-text-primary rounded-lg mb-2 focus:outline-none focus:ring-1 focus:ring-app-action-primary"
           />
+
+          {/* Selector de ubicación / carpeta padre */}
+          <div className="flex items-center gap-1.5 mb-2.5 text-[11px] text-app-text-secondary">
+            <span className="shrink-0">Dentro de:</span>
+            <select
+              value={newFolderParentId || ''}
+              onChange={(e) => setNewFolderParentId(e.target.value || null)}
+              className="bg-app-canvas text-app-text-primary text-[11px] border border-app-border-subtle rounded-lg px-2 py-1 outline-none w-full truncate cursor-pointer"
+            >
+              <option value="">Nivel raíz (sin padre)</option>
+              {activeFolders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  📁 {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center justify-end gap-1.5">
             <button
               type="button"
               onClick={() => {
                 setIsCreatingFolder(false);
                 setNewFolderName('');
+                setNewFolderParentId(null);
               }}
               className="px-2 py-0.5 text-xs text-app-text-secondary hover:text-app-text-primary"
             >
@@ -624,7 +669,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             </button>
             <button
               type="submit"
-              className="px-2.5 py-0.5 text-xs bg-app-action-primary text-white rounded-md font-medium hover:opacity-90"
+              className="px-2.5 py-0.5 text-xs bg-app-action-primary text-app-action-primary-text rounded-md font-medium hover:opacity-90"
             >
               Crear
             </button>
@@ -688,13 +733,13 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       </div>
 
       {/* 4 Acciones Rápidas en el pie de la barra lateral */}
-      <div className="p-2.5 border-t border-app-border-subtle bg-white/70 backdrop-blur-xs">
+      <div className="p-2.5 border-t border-app-border-subtle bg-app-sidebar/80 backdrop-blur-xs">
         <div className="grid grid-cols-2 gap-1.5">
           {/* 1. Crear nota */}
           <button
             type="button"
             onClick={handleCreateNoteInActiveFolder}
-            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-app-action-primary text-white hover:opacity-90 transition-opacity shadow-2xs"
+            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-app-action-primary text-app-action-primary-text hover:opacity-90 transition-opacity shadow-2xs"
             title="Crear nota"
           >
             <i className="fi fi-rr-edit text-xs leading-none" />
@@ -704,23 +749,23 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           {/* 2. Crear carpeta */}
           <button
             type="button"
-            onClick={() => setIsCreatingFolder(true)}
-            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-app-text-primary bg-black/5 hover:bg-black/10 transition-colors"
+            onClick={() => handleOpenCreateFolder()}
+            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-app-text-primary bg-app-active-pill hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             title="Crear carpeta"
           >
             <i className="fi fi-rr-add-folder text-xs leading-none text-app-text-secondary" />
             <span className="truncate">Crear carpeta</span>
           </button>
 
-          {/* 3. Crear tarea */}
+          {/* 3. Ir a To do */}
           <button
             type="button"
-            onClick={() => useAppStore.getState().setNav('todo')}
-            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-app-text-primary bg-black/5 hover:bg-black/10 transition-colors"
-            title="Ir a tareas Por hacer"
+            onClick={() => useAppStore.getState().setNav('board')}
+            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-app-text-primary bg-app-active-pill hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            title="Ir a To do"
           >
             <i className="fi fi-rr-check-circle text-xs leading-none text-app-text-secondary" />
-            <span className="truncate">Crear tarea</span>
+            <span className="truncate">To do</span>
           </button>
 
           {/* 4. Abrir Papelera */}

@@ -160,7 +160,7 @@ export const CommandPalette: React.FC = () => {
             onClick={() => setActiveTab('all')}
             className={`px-2 py-1 rounded-md transition-colors ${
               activeTab === 'all'
-                ? 'bg-app-action-primary text-white'
+                ? 'bg-app-action-primary text-app-action-primary-text'
                 : 'text-app-text-secondary hover:text-app-text-primary'
             }`}
           >
@@ -171,7 +171,7 @@ export const CommandPalette: React.FC = () => {
             onClick={() => setActiveTab('notes')}
             className={`px-2 py-1 rounded-md transition-colors ${
               activeTab === 'notes'
-                ? 'bg-app-action-primary text-white'
+                ? 'bg-app-action-primary text-app-action-primary-text'
                 : 'text-app-text-secondary hover:text-app-text-primary'
             }`}
           >
@@ -182,7 +182,7 @@ export const CommandPalette: React.FC = () => {
             onClick={() => setActiveTab('tasks')}
             className={`px-2 py-1 rounded-md transition-colors ${
               activeTab === 'tasks'
-                ? 'bg-app-action-primary text-white'
+                ? 'bg-app-action-primary text-app-action-primary-text'
                 : 'text-app-text-secondary hover:text-app-text-primary'
             }`}
           >
