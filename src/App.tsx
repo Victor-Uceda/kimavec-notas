@@ -1,11 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { Dock } from './features/dock/Dock';
 import { NoteEditor } from './features/editor/NoteEditor';
 import { NoteTabsBar } from './features/editor/NoteTabsBar';
 import { OpenOrCreateModal } from './features/editor/OpenOrCreateModal';
 import { CommandPalette } from './features/search/CommandPalette';
-import { GraphCanvas } from './features/graph/GraphCanvas';
 import { SettingsModal } from './features/settings/SettingsModal';
 import { FolderSidebar } from './features/folders/FolderSidebar';
 import { FolderEmptyState } from './features/folders/FolderEmptyState';
@@ -13,6 +12,7 @@ import { NotesBoardView } from './features/board/NotesBoardView';
 import { TrashModal } from './features/trash/TrashModal';
 import { HomeQuickNoteView } from './features/notes/HomeQuickNoteView';
 import { useAppStore } from './store/useAppStore';
+import { flushPendingSave } from './services/storage/noteSaveManager';
 
 export default function App() {
   const {
@@ -40,11 +40,97 @@ export default function App() {
     mobileView,
     isSettingsOpen,
     setSettingsOpen,
+    isSidebarOpen,
+    toggleSidebar,
+    setSidebarOpen,
+    sidebarWidth,
+    setSidebarWidth,
   } = useAppStore();
+
+  const [isDraggingDivider, setIsDraggingDivider] = useState(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(sidebarWidth);
+
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingDivider(true);
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = isSidebarOpen ? sidebarWidth : 0;
+  };
+
+  useEffect(() => {
+    if (!isDraggingDivider) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragStartXRef.current;
+
+      if (!isSidebarOpen) {
+        // Si estaba cerrado y se arrastra hacia la derecha más de 20px, se abre
+        if (deltaX > 20) {
+          setSidebarOpen(true);
+          const newWidth = Math.min(Math.max(260, 220), 280);
+          setSidebarWidth(newWidth);
+          dragStartWidthRef.current = newWidth;
+          dragStartXRef.current = e.clientX;
+        }
+        return;
+      }
+
+      // Si estaba abierto y se arrastra hacia la izquierda por debajo de 150px, se colapsa
+      const targetWidth = dragStartWidthRef.current + deltaX;
+      if (targetWidth < 150) {
+        setSidebarOpen(false);
+      } else {
+        const clamped = Math.min(Math.max(targetWidth, 220), 280);
+        setSidebarWidth(clamped);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingDivider(false);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingDivider, isSidebarOpen, setSidebarOpen, setSidebarWidth]);
 
   useEffect(() => {
     loadNotes();
   }, [loadNotes]);
+
+  // Asegurar persistencia de cambios pendientes al cerrar o desenfocar ventana
+  useEffect(() => {
+    const handleFlush = () => {
+      flushPendingSave();
+    };
+    window.addEventListener('beforeunload', handleFlush);
+    window.addEventListener('blur', handleFlush);
+    return () => {
+      window.removeEventListener('beforeunload', handleFlush);
+      window.removeEventListener('blur', handleFlush);
+    };
+  }, []);
+
+  // Atajo global Ctrl+\ o Cmd+\ para colapsar/expandir barra lateral
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
 
   const activeNotes = useMemo(() => {
     return notes.filter((n) => !n.deletedAt);
@@ -93,8 +179,6 @@ export default function App() {
         editor={
           activeNav === 'home' ? (
             <HomeQuickNoteView onOpenNotes={() => setNav('notes')} />
-          ) : activeNav === 'canvas' ? (
-            <GraphCanvas onClose={() => setNav('notes')} />
           ) : activeNav === 'board' || activeNav === 'todo' ? (
             <NotesBoardView
               onOpenNote={(noteId) => {
@@ -103,17 +187,44 @@ export default function App() {
               }}
             />
           ) : (
-            <div className="flex-1 h-full flex overflow-hidden rounded-sheet shadow-sheet border border-app-border-subtle bg-app-editor">
-              {/* Barra lateral de carpetas en vista Notas */}
+            <div className="flex-1 h-full flex overflow-hidden rounded-sheet shadow-sheet border border-app-border-subtle bg-app-editor relative">
+              {/* Barra lateral de carpetas en vista Notas (Colapsable y redimensionable con animación) */}
               <div
-                className={`h-full ${
-                  mobileView === 'editor' && activeNote ? 'hidden md:flex' : 'flex'
-                } w-full md:w-64 shrink-0`}
+                style={{
+                  width: isSidebarOpen ? `${sidebarWidth}px` : '0px',
+                }}
+                className={`h-full shrink-0 overflow-hidden ${
+                  isDraggingDivider ? '' : 'transition-[width,opacity] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]'
+                } ${
+                  mobileView === 'editor' && activeNote ? 'hidden md:block' : 'block'
+                } ${
+                  isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
               >
-                <FolderSidebar
-                  onSelectNote={selectNote}
-                  activeNoteId={activeNote?.id}
-                  onOpenSearch={() => setSearchOpen(true)}
+                <div className="w-full h-full">
+                  <FolderSidebar
+                    onSelectNote={selectNote}
+                    activeNoteId={activeNote?.id}
+                    onOpenSearch={() => setSearchOpen(true)}
+                  />
+                </div>
+              </div>
+
+              {/* Divisor arrastrable tipo VS Code entre carpetas y editor */}
+              <div
+                onMouseDown={handleDividerMouseDown}
+                onDoubleClick={toggleSidebar}
+                className={`hidden md:flex items-center justify-center w-2 -ml-1 cursor-col-resize select-none shrink-0 relative z-30 group ${
+                  isDraggingDivider ? 'bg-blue-500/15' : 'hover:bg-blue-500/10'
+                }`}
+                title="Arrastra para redimensionar o colapsar (doble clic para alternar)"
+              >
+                <div
+                  className={`w-[1.5px] h-full transition-colors ${
+                    isDraggingDivider
+                      ? 'bg-blue-500 shadow-sm'
+                      : 'bg-app-border-subtle group-hover:bg-blue-400'
+                  }`}
                 />
               </div>
 
@@ -142,7 +253,6 @@ export default function App() {
                           note={activeNote}
                           onChangeTitle={(title) => updateNote(activeNote.id, title, activeNote.content)}
                           onChangeContent={(content) => updateNote(activeNote.id, activeNote.title, content)}
-                          onOpenGraph={() => setNav('canvas')}
                           onClose={() => closeNoteTab(activeNote.id)}
                           onDeleteNote={() => {
                             if (window.confirm(`¿Eliminar la nota "${activeNote.title || 'sin título'}"?`)) {
@@ -165,7 +275,6 @@ export default function App() {
                             note={secondaryNote}
                             onChangeTitle={(title) => updateNote(secondaryNote.id, title, secondaryNote.content)}
                             onChangeContent={(content) => updateNote(secondaryNote.id, secondaryNote.title, content)}
-                            onOpenGraph={() => setNav('canvas')}
                             onClose={() => closeNoteTab(secondaryNote.id)}
                             onDeleteNote={() => {
                               if (window.confirm(`¿Eliminar la nota "${secondaryNote.title || 'sin título'}"?`)) {

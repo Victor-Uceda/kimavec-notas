@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Plus } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
+import { Plus, PanelLeftClose } from 'lucide-react';
+import { useAppStore, isNoteEmpty } from '../../store/useAppStore';
 import type { Folder, Note } from '../../types';
 
 interface FolderSidebarProps {
@@ -27,6 +27,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     createNote,
     deleteNote,
     setTrashOpen,
+    toggleSidebar,
   } = useAppStore();
 
   const [statusNotification, setStatusNotification] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const activeNotes = useMemo(() => notes.filter((n) => !n.deletedAt), [notes]);
 
   const trashCount = useMemo(() => {
-    const trashedN = notes.filter((n) => !!n.deletedAt).length;
+    const trashedN = notes.filter((n) => !!n.deletedAt && !isNoteEmpty(n)).length;
     const trashedF = folders.filter((f) => !!f.deletedAt).length;
     const trashedC = boardCards.filter((c) => !!c.deletedAt).length;
     return trashedN + trashedF + trashedC;
@@ -182,7 +183,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         onClick={() => onSelectNote(note.id)}
         className={`group/item flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-colors relative ${
           isNoteActive
-            ? 'bg-app-editor text-app-text-primary font-medium shadow-2xs border border-app-border-subtle'
+            ? 'bg-app-active-pill text-app-text-primary font-medium shadow-2xs'
             : 'text-app-text-secondary hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text-primary'
         }`}
       >
@@ -576,9 +577,9 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           </form>
         )}
 
-        {/* Contenido anidado de la carpeta: subcarpetas y notas */}
+        {/* Contenido anidado de la carpeta: subcarpetas y notas (sin líneas divisorias, solo sangría limpia) */}
         {isExpanded && (childFolders.length > 0 || folderNotes.length > 0) && (
-          <div className="ml-3.5 pl-2 border-l border-black/10 dark:border-white/10 my-0.5 space-y-0.5">
+          <div className="ml-3 pl-1.5 my-0.5 space-y-0.5">
             {/* Subcarpetas anidadas */}
             {childFolders.map((sub) => renderFolderItem(sub, depth + 1))}
 
@@ -591,32 +592,38 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   };
 
   return (
-    <aside className="w-full md:w-64 h-full bg-app-sidebar border-r border-app-border-subtle flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative">
+    <aside className="w-full h-full bg-app-sidebar flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative">
       {/* Cabecera superior limpia: Notas + botón Crear Carpeta */}
       <div className="p-3.5 border-b border-app-border-subtle flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-panel-title font-bold text-app-text-primary tracking-tight">
             Notas
           </h2>
-
-          {/* Pill de notificación de estado */}
-          {statusNotification && (
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200/60 animate-in fade-in duration-150">
-              {statusNotification}
-            </span>
-          )}
         </div>
 
-        {/* Botón superior "+ Crear carpeta" */}
-        <button
-          type="button"
-          onClick={() => handleOpenCreateFolder()}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-app-active-pill text-app-text-primary text-xs font-medium hover:bg-black/10 transition-colors shadow-2xs leading-none"
-          title="Crear nueva carpeta"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
-          <span>Crear carpeta</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Botón superior "+ Crear carpeta" */}
+          <button
+            type="button"
+            onClick={() => handleOpenCreateFolder()}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-app-active-pill text-app-text-primary text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors shadow-2xs leading-none"
+            title="Crear nueva carpeta"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
+            <span>Crear carpeta</span>
+          </button>
+
+          {/* Botón para colapsar panel de carpetas */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            title="Ocultar panel lateral (Ctrl + \)"
+            aria-label="Ocultar panel lateral"
+          >
+            <PanelLeftClose className="w-4 h-4 stroke-[1.8]" />
+          </button>
+        </div>
       </div>
 
       {/* Input flotante para crear carpeta */}
@@ -785,6 +792,14 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Notificación flotante estética Liquid Glass */}
+      {statusNotification && (
+        <div className="absolute bottom-24 left-3 right-3 z-40 px-3.5 py-2.5 rounded-xl liquid-glass border border-app-border-subtle shadow-xl flex items-center gap-2 text-xs text-app-text-primary font-medium backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200 select-none">
+          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 animate-pulse" />
+          <span className="truncate">{statusNotification}</span>
+        </div>
+      )}
     </aside>
   );
 };

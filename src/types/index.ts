@@ -58,6 +58,6 @@ export interface Note {
   deletedAt?: number;
 }
 
-export type NavigationItem = 'home' | 'notes' | 'board' | 'todo' | 'canvas' | 'settings';
+export type NavigationItem = 'home' | 'notes' | 'board' | 'todo' | 'settings';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'amber';

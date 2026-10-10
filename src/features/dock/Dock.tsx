@@ -1,7 +1,7 @@
 import React from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Flame } from 'lucide-react';
 import type { NavigationItem } from '../../types';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, isNoteEmpty } from '../../store/useAppStore';
 
 interface DockProps {
   activeItem: NavigationItem;
@@ -14,7 +14,27 @@ export const Dock: React.FC<DockProps> = ({
   onSelectItem,
   onOpenSettings,
 }) => {
-  const { theme, toggleTheme, isSettingsOpen, setSettingsOpen } = useAppStore();
+  const {
+    theme,
+    toggleTheme,
+    isSettingsOpen,
+    setSettingsOpen,
+    isTrashOpen,
+    setTrashOpen,
+    notes,
+    folders,
+    boardCards,
+    standaloneTasks,
+  } = useAppStore();
+
+  const trashedCount = React.useMemo(() => {
+    return (
+      notes.filter((n) => !!n.deletedAt && !isNoteEmpty(n)).length +
+      folders.filter((f) => !!f.deletedAt).length +
+      boardCards.filter((c) => !!c.deletedAt).length +
+      (standaloneTasks || []).filter((t) => !!t.deletedAt).length
+    );
+  }, [notes, folders, boardCards, standaloneTasks]);
 
   const navButtons = (
     <>
@@ -62,21 +82,6 @@ export const Dock: React.FC<DockProps> = ({
       >
         <i className="fi fi-rr-clipboard-list-check text-[17px] leading-none" />
       </button>
-
-      {/* 4. Botón de Grafo de Red Neuronal */}
-      <button
-        type="button"
-        aria-label="Red Neuronal / Grafo"
-        onClick={() => onSelectItem('canvas')}
-        className={`w-10 h-10 rounded-dock flex items-center justify-center transition-all duration-150 ${
-          activeItem === 'canvas'
-            ? 'bg-app-active-pill text-app-text-primary shadow-2xs font-semibold'
-            : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5'
-        }`}
-        title="Ver red de conocimiento (neuronas)"
-      >
-        <i className="fi fi-rr-chart-network text-[17px] leading-none" />
-      </button>
     </>
   );
 
@@ -97,15 +102,35 @@ export const Dock: React.FC<DockProps> = ({
           {/* Botón rápido de modo oscuro OLED / claro */}
           <button
             type="button"
-            aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro OLED'}
+            aria-label={theme === 'dark' ? 'Cambiar a modo ámbar' : theme === 'amber' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro OLED'}
             onClick={toggleTheme}
             className="w-10 h-10 rounded-dock flex items-center justify-center text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-150"
-            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro OLED'}
+            title={theme === 'dark' ? 'Modo Ámbar' : theme === 'amber' ? 'Modo Claro' : 'Modo Oscuro OLED'}
           >
-            {theme === 'dark' ? (
-              <Sun className="w-[18px] h-[18px] text-amber-400 stroke-[2] animate-in spin-in-180 duration-200" />
+            {theme === 'amber' ? (
+              <Flame className="w-[18px] h-[18px] text-amber-500 stroke-[2] animate-in spin-in-180 duration-200" />
+            ) : theme === 'dark' ? (
+              <Moon className="w-[18px] h-[18px] text-indigo-400 stroke-[2] animate-in spin-in-180 duration-200" />
             ) : (
-              <Moon className="w-[18px] h-[18px] stroke-[2] animate-in spin-in-180 duration-200" />
+              <Sun className="w-[18px] h-[18px] text-amber-500 stroke-[2] animate-in spin-in-180 duration-200" />
+            )}
+          </button>
+
+          {/* Botón de papelera */}
+          <button
+            type="button"
+            aria-label="Papelera"
+            onClick={() => setTrashOpen(true)}
+            className={`w-10 h-10 rounded-dock flex items-center justify-center transition-colors duration-150 relative ${
+              isTrashOpen
+                ? 'bg-app-active-pill text-app-text-primary shadow-2xs font-semibold'
+                : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title="Papelera"
+          >
+            <i className="fi fi-rr-trash text-[17px] leading-none" />
+            {trashedCount > 0 && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-app-sidebar" />
             )}
           </button>
 
@@ -139,14 +164,34 @@ export const Dock: React.FC<DockProps> = ({
         {/* Alternador de tema en móvil */}
         <button
           type="button"
-          aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          aria-label={theme === 'dark' ? 'Modo ámbar' : theme === 'amber' ? 'Modo claro' : 'Modo oscuro'}
           onClick={toggleTheme}
           className="w-10 h-10 rounded-dock flex items-center justify-center text-app-text-secondary active:scale-95 transition-all"
         >
-          {theme === 'dark' ? (
-            <Sun className="w-[18px] h-[18px] text-amber-400 stroke-[2]" />
+          {theme === 'amber' ? (
+            <Flame className="w-[18px] h-[18px] text-amber-500 stroke-[2]" />
+          ) : theme === 'dark' ? (
+            <Moon className="w-[18px] h-[18px] text-indigo-400 stroke-[2]" />
           ) : (
-            <Moon className="w-[18px] h-[18px] stroke-[2]" />
+            <Sun className="w-[18px] h-[18px] text-amber-500 stroke-[2]" />
+          )}
+        </button>
+
+        {/* Papelera en móvil */}
+        <button
+          type="button"
+          aria-label="Papelera"
+          onClick={() => setTrashOpen(true)}
+          className={`w-10 h-10 rounded-dock flex items-center justify-center transition-colors relative ${
+            isTrashOpen
+              ? 'bg-app-active-pill text-app-text-primary font-semibold'
+              : 'text-app-text-secondary'
+          }`}
+          title="Papelera"
+        >
+          <i className="fi fi-rr-trash text-[17px] leading-none" />
+          {trashedCount > 0 && (
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500 ring-2 ring-app-sidebar" />
           )}
         </button>
 

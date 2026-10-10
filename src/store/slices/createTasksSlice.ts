@@ -1,6 +1,6 @@
 import type { Task, TaskPriority } from '../../types';
 import type { TasksSlice, AppSlice } from '../types';
-import { taskRepository } from '../../services/storage/noteRepository';
+import { taskRepository } from '../../services/storage/taskRepository';
 
 export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
   standaloneTasks: [],

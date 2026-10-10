@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, isNoteEmpty } from '../../store/useAppStore';
 
 type TrashTab = 'notes' | 'folders' | 'tasks';
 
@@ -44,7 +44,9 @@ export const TrashModal: React.FC = () => {
   }, [isTrashOpen, setTrashOpen]);
 
   const trashedNotes = useMemo(() => {
-    return notes.filter((n) => !!n.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+    return notes
+      .filter((n) => !!n.deletedAt && !isNoteEmpty(n))
+      .sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   }, [notes]);
 
   const trashedFolders = useMemo(() => {
@@ -87,24 +89,29 @@ export const TrashModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150 select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-150 select-none">
       {/* Backdrop click to close */}
       <div className="fixed inset-0" onClick={() => setTrashOpen(false)} />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-app-border-subtle flex flex-col max-h-[85vh] overflow-hidden z-10 animate-in zoom-in-95 duration-150">
-        {/* Cabecera minimalista: solo título */}
-        <div className="px-5 py-4 border-b border-app-border-subtle flex items-center justify-between bg-white">
-          <h2 className="text-panel-title font-bold text-app-text-primary tracking-tight">
-            Papelera
-          </h2>
+      <div className="relative w-full max-w-2xl bg-app-editor rounded-2xl shadow-2xl border border-app-border-subtle flex flex-col max-h-[85vh] overflow-hidden z-10 animate-in zoom-in-95 duration-150 text-app-text-primary">
+        {/* Cabecera limpia sin líneas divisorias */}
+        <div className="px-6 pt-5 pb-2.5 flex items-center justify-between bg-app-editor">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-panel-title font-bold text-app-text-primary tracking-tight">
+              Papelera
+            </h2>
+            <span className="text-badge px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-app-text-secondary font-medium">
+              {totalTrashedCount}
+            </span>
+          </div>
 
           <div className="flex items-center gap-2">
             {totalTrashedCount > 0 && (
               <button
                 type="button"
                 onClick={handleEmptyTrash}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                className="px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                 title="Vaciar papelera"
               >
                 Vaciar papelera
@@ -114,7 +121,7 @@ export const TrashModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setTrashOpen(false)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 transition-colors"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Cerrar (Esc)"
             >
               <i className="fi fi-rr-cross-small text-base leading-none" />
@@ -122,65 +129,67 @@ export const TrashModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Pestañas limpias: Notas, Carpetas, Tareas */}
-        <div className="px-5 pt-3 border-b border-app-border-subtle flex items-center gap-4 bg-white">
-          <button
-            type="button"
-            onClick={() => setActiveTab('notes')}
-            className={`pb-2.5 text-xs font-medium flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'notes'
-                ? 'border-blue-600 text-blue-600 font-semibold'
-                : 'border-transparent text-app-text-secondary hover:text-app-text-primary'
-            }`}
-          >
-            <i className="fi fi-rr-document text-xs leading-none" />
-            <span>Notas</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 text-app-text-secondary">
-              {trashedNotes.length}
-            </span>
-          </button>
+        {/* Pestañas limpias estilo Segmented Control (sin líneas horizontales que corten la UI) */}
+        <div className="px-6 pb-3 bg-app-editor">
+          <div className="inline-flex p-1 rounded-xl bg-app-canvas dark:bg-white/5 border border-app-border-subtle/50 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('notes')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                activeTab === 'notes'
+                  ? 'bg-app-editor text-app-text-primary shadow-xs font-semibold'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <i className="fi fi-rr-document text-xs leading-none" />
+              <span>Notas</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 dark:bg-white/10 text-app-text-secondary">
+                {trashedNotes.length}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('folders')}
-            className={`pb-2.5 text-xs font-medium flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'folders'
-                ? 'border-blue-600 text-blue-600 font-semibold'
-                : 'border-transparent text-app-text-secondary hover:text-app-text-primary'
-            }`}
-          >
-            <i className="fi fi-rr-folder text-xs leading-none" />
-            <span>Carpetas</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 text-app-text-secondary">
-              {trashedFolders.length}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('folders')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                activeTab === 'folders'
+                  ? 'bg-app-editor text-app-text-primary shadow-xs font-semibold'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <i className="fi fi-rr-folder text-xs leading-none" />
+              <span>Carpetas</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 dark:bg-white/10 text-app-text-secondary">
+                {trashedFolders.length}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('tasks')}
-            className={`pb-2.5 text-xs font-medium flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'tasks'
-                ? 'border-blue-600 text-blue-600 font-semibold'
-                : 'border-transparent text-app-text-secondary hover:text-app-text-primary'
-            }`}
-          >
-            <i className="fi fi-rr-chart-kanban text-xs leading-none" />
-            <span>Tareas</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 text-app-text-secondary">
-              {trashedCards.length}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('tasks')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                activeTab === 'tasks'
+                  ? 'bg-app-editor text-app-text-primary shadow-xs font-semibold'
+                  : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <i className="fi fi-rr-chart-kanban text-xs leading-none" />
+              <span>Tareas</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/5 dark:bg-white/10 text-app-text-secondary">
+                {trashedCards.length + trashedStandaloneTasks.length}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Contenido de la pestaña activa */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5 bg-[#F9FAFB]/50 min-h-[260px]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5 bg-app-canvas/60 dark:bg-black/40 min-h-[260px]">
           {/* Pestaña Notas */}
           {activeTab === 'notes' && (
             <>
               {trashedNotes.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
+                  <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
                     <i className="fi fi-rr-document text-xl leading-none" />
                   </div>
                   <p className="text-xs font-medium text-app-text-primary">No hay notas en la papelera</p>
@@ -194,7 +203,7 @@ export const TrashModal: React.FC = () => {
                   return (
                     <div
                       key={note.id}
-                      className="p-3.5 bg-white border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 transition-all"
+                      className="p-3.5 bg-app-editor border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 dark:hover:border-white/20 transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <i className="fi fi-rr-document text-base text-app-text-secondary shrink-0 leading-none" />
@@ -224,7 +233,7 @@ export const TrashModal: React.FC = () => {
                             await restoreNote(note.id);
                             showToast(`Nota "${note.title || 'sin título'}" restaurada`);
                           }}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100/80 transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 transition-colors flex items-center gap-1"
                           title="Restaurar nota"
                         >
                           <i className="fi fi-rr-rotate-left text-xs leading-none" />
@@ -238,7 +247,7 @@ export const TrashModal: React.FC = () => {
                               showToast('Nota eliminada definitivamente');
                             }
                           }}
-                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"
                         >
                           <i className="fi fi-rr-trash text-xs leading-none" />
@@ -256,7 +265,7 @@ export const TrashModal: React.FC = () => {
             <>
               {trashedFolders.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
+                  <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
                     <i className="fi fi-rr-folder text-xl leading-none" />
                   </div>
                   <p className="text-xs font-medium text-app-text-primary">No hay carpetas en la papelera</p>
@@ -268,7 +277,7 @@ export const TrashModal: React.FC = () => {
                 trashedFolders.map((folder) => (
                   <div
                     key={folder.id}
-                    className="p-3.5 bg-white border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 transition-all"
+                    className="p-3.5 bg-app-editor border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 dark:hover:border-white/20 transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <i className="fi fi-rr-folder text-base text-blue-600 shrink-0 leading-none" />
@@ -289,7 +298,7 @@ export const TrashModal: React.FC = () => {
                           await restoreFolder(folder.id);
                           showToast(`Carpeta "${folder.name}" restaurada`);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100/80 transition-colors flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 transition-colors flex items-center gap-1"
                         title="Restaurar carpeta"
                       >
                         <i className="fi fi-rr-rotate-left text-xs leading-none" />
@@ -303,7 +312,7 @@ export const TrashModal: React.FC = () => {
                             showToast('Carpeta eliminada definitivamente');
                           }
                         }}
-                        className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                         title="Eliminar definitivamente"
                       >
                         <i className="fi fi-rr-trash text-xs leading-none" />
@@ -320,7 +329,7 @@ export const TrashModal: React.FC = () => {
             <>
               {trashedCards.length === 0 && trashedStandaloneTasks.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
+                  <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center mb-2 text-app-text-secondary/60">
                     <i className="fi fi-rr-clipboard-list-check text-xl leading-none" />
                   </div>
                   <p className="text-xs font-medium text-app-text-primary">No hay tareas en la papelera</p>
@@ -334,7 +343,7 @@ export const TrashModal: React.FC = () => {
                   {trashedStandaloneTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="p-3.5 bg-white border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 transition-all"
+                      className="p-3.5 bg-app-editor border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 dark:hover:border-white/20 transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <i className="fi fi-rr-check-circle text-base text-app-text-secondary shrink-0 leading-none" />
@@ -357,7 +366,7 @@ export const TrashModal: React.FC = () => {
                             await restoreStandaloneTask(task.id);
                             showToast(`Tarea "${task.title}" restaurada`);
                           }}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100/80 transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 transition-colors flex items-center gap-1"
                           title="Restaurar tarea"
                         >
                           <i className="fi fi-rr-rotate-left text-xs leading-none" />
@@ -371,7 +380,7 @@ export const TrashModal: React.FC = () => {
                               showToast('Tarea eliminada definitivamente');
                             }
                           }}
-                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"
                         >
                           <i className="fi fi-rr-trash text-xs leading-none" />
@@ -384,7 +393,7 @@ export const TrashModal: React.FC = () => {
                   {trashedCards.map((card) => (
                     <div
                       key={card.id}
-                      className="p-3.5 bg-white border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 transition-all"
+                      className="p-3.5 bg-app-editor border border-app-border-subtle rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-black/15 dark:hover:border-white/20 transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <i className="fi fi-rr-chart-kanban text-base text-app-text-secondary shrink-0 leading-none" />
@@ -415,7 +424,7 @@ export const TrashModal: React.FC = () => {
                             await restoreBoardCard(card.id);
                             showToast(`Tarea "${card.title || 'sin título'}" restaurada`);
                           }}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100/80 transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 transition-colors flex items-center gap-1"
                           title="Restaurar tarjeta"
                         >
                           <i className="fi fi-rr-rotate-left text-xs leading-none" />
@@ -429,7 +438,7 @@ export const TrashModal: React.FC = () => {
                               showToast('Tarjeta eliminada definitivamente');
                             }
                           }}
-                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"
                         >
                           <i className="fi fi-rr-trash text-xs leading-none" />

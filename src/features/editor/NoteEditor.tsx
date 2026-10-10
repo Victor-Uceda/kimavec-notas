@@ -21,7 +21,6 @@ interface NoteEditorProps {
   note: Note;
   onChangeTitle: (title: string) => void;
   onChangeContent: (content: string) => void;
-  onOpenGraph?: () => void;
   onDeleteNote?: () => void;
   onClose?: () => void;
 }
@@ -30,7 +29,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   note,
   onChangeTitle,
   onChangeContent,
-  onOpenGraph,
   onDeleteNote,
   onClose,
 }) => {
@@ -239,7 +237,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         editor={editor}
         note={note}
         onClose={onClose}
-        onOpenGraph={onOpenGraph}
         onDeleteNote={onDeleteNote}
       />
 

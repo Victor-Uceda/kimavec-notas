@@ -1,5 +1,4 @@
 @import '@flaticon/flaticon-uicons/css/regular/rounded.css';
-@import '@flaticon/flaticon-uicons/css/solid/rounded.css';
 
 @tailwind base;
 @tailwind components;
@@ -43,6 +42,57 @@
     --app-badge-high-text: #F87171;
     --app-badge-tag-bg: rgba(255, 255, 255, 0.08);
     --app-badge-tag-text: #D1D5DB;
+  }
+
+  .theme-amber {
+    color-scheme: dark;
+    /* Paleta Cálida / Ámbar refinada, suave y cinematográfica (tonos reducidos y relajados) */
+    --app-canvas: #0D0B08;
+    --app-editor: #13100B;
+    --app-sidebar: #100E0A;
+    --app-active-pill: #1D1710;
+    --app-border-subtle: rgba(214, 160, 50, 0.07);
+    --app-action-primary: #D4A348;
+    --app-action-primary-hover: #E2B35B;
+    --app-action-primary-text: #100E0A;
+    --app-text-primary: #EBE4D5;
+    --app-text-secondary: #998B75;
+    --app-text-disabled: #584D3C;
+    --app-badge-high-bg: rgba(239, 68, 68, 0.18);
+    --app-badge-high-text: #FCA5A5;
+    --app-badge-tag-bg: rgba(212, 163, 72, 0.12);
+    --app-badge-tag-text: #E5BE72;
+  }
+
+  /* Modo Ámbar: quitar las líneas invasivas que envuelven las pestañas y el contenedor */
+  .theme-amber .rounded-sheet {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .theme-amber [data-tabs-bar] {
+    border-bottom-color: transparent !important;
+    background-color: transparent !important;
+  }
+
+  .theme-amber [data-tabs-bar] .border-r {
+    border-right-color: rgba(214, 160, 50, 0.08) !important;
+  }
+
+  .theme-amber [data-note-tab] {
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --tw-ring-color: transparent !important;
+  }
+
+  .theme-amber [data-note-tab].is-active {
+    background-color: var(--app-active-pill) !important;
+    color: var(--app-text-primary) !important;
+  }
+
+  .theme-amber [data-editor-toolbar] {
+    border-color: rgba(214, 160, 50, 0.08) !important;
+    background-color: var(--app-editor) !important;
   }
 
   html,

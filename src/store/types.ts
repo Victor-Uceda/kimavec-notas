@@ -11,6 +11,8 @@ export interface UiState {
   persistenceError: string | null;
   theme: Theme;
   mobileView: 'list' | 'editor';
+  isSidebarOpen: boolean;
+  sidebarWidth: number;
 }
 
 export interface UiActions {
@@ -23,6 +25,9 @@ export interface UiActions {
   setTrashOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setAddModalOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+  setSidebarWidth: (width: number) => void;
 }
 
 export type UiSlice = UiState & UiActions;

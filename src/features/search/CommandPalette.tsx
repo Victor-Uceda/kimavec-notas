@@ -10,7 +10,7 @@ type SearchResult =
   | { type: 'task'; item: Task };
 
 export const CommandPalette: React.FC = () => {
-  const { isSearchOpen, setSearchOpen, notes, selectNote } = useAppStore();
+  const { isSearchOpen, setSearchOpen, notes, selectNote, setNav } = useAppStore();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'notes' | 'tasks'>('all');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -97,8 +97,12 @@ export const CommandPalette: React.FC = () => {
 
     if (target.type === 'note') {
       selectNote(target.item.id);
+      setNav('notes');
     } else {
-      if (target.item.noteId) selectNote(target.item.noteId);
+      if (target.item.noteId) {
+        selectNote(target.item.noteId);
+        setNav('notes');
+      }
     }
     handleClose();
   };

@@ -1,4 +1,4 @@
-import type { Note, Folder, BoardCard, Task } from '../../types';
+import type { Note, Folder, BoardCard } from '../../types';
 
 export interface NoteRepository {
   getAll(): Promise<Note[]>;
@@ -18,12 +18,7 @@ export interface BoardCardRepository {
   save(card: BoardCard): Promise<void>;
   delete(id: string): Promise<void>;
 }
-
-export interface TaskRepository {
-  getAll(): Promise<Task[]>;
-  save(task: Task): Promise<void>;
-  delete(id: string): Promise<void>;
-}
+export type { TaskRepository } from './taskRepository';
 
 const STORAGE_KEY = 'notas_app_notes_v1';
 const FOLDERS_STORAGE_KEY = 'notas_app_folders_v1';
@@ -80,12 +75,16 @@ export class LocalStorageNoteRepository implements NoteRepository {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (!data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_NOTES));
-        return DEFAULT_NOTES;
+        if (!localStorage.getItem('notas_app_seeded_v1')) {
+          localStorage.setItem('notas_app_seeded_v1', 'true');
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_NOTES));
+          return DEFAULT_NOTES;
+        }
+        return [];
       }
       return JSON.parse(data);
     } catch {
-      return DEFAULT_NOTES;
+      return [];
     }
   }
 
@@ -126,18 +125,7 @@ export class TauriNoteRepository implements NoteRepository {
     if (this.isTauriAvailable()) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
-        const notes = await invoke<Note[]>('get_notes');
-        if (notes && notes.length > 0) {
-          return notes;
-        }
-        // Si SQLite está recién creado y vacío, sembramos las notas iniciales
-        for (const note of DEFAULT_NOTES) {
-          await invoke('save_note', { note });
-        }
-        const seeded = await invoke<Note[]>('get_notes');
-        if (seeded && seeded.length > 0) {
-          return seeded;
-        }
+        return await invoke<Note[]>('get_notes');
       } catch (err) {
         console.warn('Tauri invoke falló, usando fallback LocalStorage:', err);
       }
@@ -182,12 +170,16 @@ export class LocalStorageFolderRepository implements FolderRepository {
     try {
       const data = localStorage.getItem(FOLDERS_STORAGE_KEY);
       if (!data) {
-        localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(DEFAULT_FOLDERS));
-        return DEFAULT_FOLDERS;
+        if (!localStorage.getItem('notas_app_seeded_v1')) {
+          localStorage.setItem('notas_app_seeded_v1', 'true');
+          localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(DEFAULT_FOLDERS));
+          return DEFAULT_FOLDERS;
+        }
+        return [];
       }
       return JSON.parse(data);
     } catch {
-      return DEFAULT_FOLDERS;
+      return [];
     }
   }
 
@@ -208,6 +200,52 @@ export class LocalStorageFolderRepository implements FolderRepository {
     const folders = await this.getAll();
     const filtered = folders.filter((f) => f.id !== id);
     localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(filtered));
+  }
+}
+
+const fallbackFolderRepo = new LocalStorageFolderRepository();
+
+export class TauriFolderRepository implements FolderRepository {
+  private isTauriAvailable(): boolean {
+    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  }
+
+  async getAll(): Promise<Folder[]> {
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return await invoke<Folder[]>('get_folders');
+      } catch (err) {
+        console.warn('Tauri get_folders falló, usando LocalStorage fallback:', err);
+      }
+    }
+    return fallbackFolderRepo.getAll();
+  }
+
+  async save(folder: Folder): Promise<void> {
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_folder', { folder });
+        return;
+      } catch (err) {
+        console.warn('Tauri save_folder falló, usando LocalStorage fallback:', err);
+      }
+    }
+    await fallbackFolderRepo.save(folder);
+  }
+
+  async delete(id: string): Promise<void> {
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('delete_folder', { id });
+        return;
+      } catch (err) {
+        console.warn('Tauri delete_folder falló, usando LocalStorage fallback:', err);
+      }
+    }
+    await fallbackFolderRepo.delete(id);
   }
 }
 
@@ -247,12 +285,16 @@ export class LocalStorageBoardCardRepository implements BoardCardRepository {
     try {
       const data = localStorage.getItem(BOARD_CARDS_STORAGE_KEY);
       if (!data) {
-        localStorage.setItem(BOARD_CARDS_STORAGE_KEY, JSON.stringify(DEFAULT_BOARD_CARDS));
-        return DEFAULT_BOARD_CARDS;
+        if (!localStorage.getItem('notas_app_seeded_v1')) {
+          localStorage.setItem('notas_app_seeded_v1', 'true');
+          localStorage.setItem(BOARD_CARDS_STORAGE_KEY, JSON.stringify(DEFAULT_BOARD_CARDS));
+          return DEFAULT_BOARD_CARDS;
+        }
+        return [];
       }
       return JSON.parse(data);
     } catch {
-      return DEFAULT_BOARD_CARDS;
+      return [];
     }
   }
 
@@ -276,62 +318,59 @@ export class LocalStorageBoardCardRepository implements BoardCardRepository {
   }
 }
 
-const fallbackRepo = new LocalStorageNoteRepository();
-export const noteRepository: NoteRepository = new TauriNoteRepository();
-export const folderRepository: FolderRepository = new LocalStorageFolderRepository();
-export const boardCardRepository: BoardCardRepository = new LocalStorageBoardCardRepository();
+const fallbackBoardCardRepo = new LocalStorageBoardCardRepository();
 
-const TASKS_STORAGE_KEY = 'notas_app_standalone_tasks_v1';
-
-export const DEFAULT_STANDALONE_TASKS: Task[] = [
-  {
-    id: 'task-1',
-    title: 'Revisar diseño minimalista de la interfaz',
-    completed: false,
-    source: 'manual',
-    createdAt: Date.now() - 3600000,
-  },
-  {
-    id: 'task-2',
-    title: 'Organizar documentos y notas en carpetas',
-    completed: true,
-    source: 'manual',
-    createdAt: Date.now() - 7200000,
-  },
-];
-
-export class LocalStorageTaskRepository implements TaskRepository {
-  async getAll(): Promise<Task[]> {
-    try {
-      const data = localStorage.getItem(TASKS_STORAGE_KEY);
-      if (!data) {
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(DEFAULT_STANDALONE_TASKS));
-        return DEFAULT_STANDALONE_TASKS;
-      }
-      return JSON.parse(data);
-    } catch {
-      return DEFAULT_STANDALONE_TASKS;
-    }
+export class TauriBoardCardRepository implements BoardCardRepository {
+  private isTauriAvailable(): boolean {
+    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   }
 
-  async save(task: Task): Promise<void> {
-    const tasks = await this.getAll();
-    const index = tasks.findIndex((t) => t.id === task.id);
-    let updated: Task[];
-    if (index >= 0) {
-      updated = [...tasks];
-      updated[index] = task;
-    } else {
-      updated = [{ ...task }, ...tasks];
+  async getAll(): Promise<BoardCard[]> {
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return await invoke<BoardCard[]>('get_board_cards');
+      } catch (err) {
+        console.warn('Tauri get_board_cards falló, usando LocalStorage fallback:', err);
+      }
     }
-    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(updated));
+    return fallbackBoardCardRepo.getAll();
+  }
+
+  async save(card: BoardCard): Promise<void> {
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_board_card', { card });
+        return;
+      } catch (err) {
+        console.warn('Tauri save_board_card falló, usando LocalStorage fallback:', err);
+      }
+    }
+    await fallbackBoardCardRepo.save(card);
   }
 
   async delete(id: string): Promise<void> {
-    const tasks = await this.getAll();
-    const filtered = tasks.filter((t) => t.id !== id);
-    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(filtered));
+    if (this.isTauriAvailable()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('delete_board_card', { id });
+        return;
+      } catch (err) {
+        console.warn('Tauri delete_board_card falló, usando LocalStorage fallback:', err);
+      }
+    }
+    await fallbackBoardCardRepo.delete(id);
   }
 }
 
-export const taskRepository: TaskRepository = new LocalStorageTaskRepository();
+const fallbackRepo = new LocalStorageNoteRepository();
+export const noteRepository: NoteRepository = new TauriNoteRepository();
+export const folderRepository: FolderRepository = new TauriFolderRepository();
+export const boardCardRepository: BoardCardRepository = new TauriBoardCardRepository();
+export {
+  DEFAULT_STANDALONE_TASKS,
+  LocalStorageTaskRepository,
+  TauriTaskRepository,
+  taskRepository,
+} from './taskRepository';

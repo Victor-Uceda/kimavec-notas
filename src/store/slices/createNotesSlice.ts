@@ -9,44 +9,13 @@ import {
   DEFAULT_FOLDERS,
 } from '../../services/storage/noteRepository';
 
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-let pendingNoteToSave: Note | null = null;
+import {
+  isNoteEmpty,
+  flushPendingSave,
+  debouncedSaveNote,
+} from '../../services/storage/noteSaveManager';
 
-export const isNoteEmpty = (note?: Note | null): boolean => {
-  if (!note) return true;
-  const hasTitle = note.title.trim().length > 0;
-  const plainContent = note.content.replace(/<[^>]+>/g, '').trim();
-  return !hasTitle && plainContent.length === 0;
-};
-
-export const flushPendingSave = () => {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-    saveTimeout = null;
-  }
-  if (pendingNoteToSave) {
-    if (!isNoteEmpty(pendingNoteToSave)) {
-      noteRepository.save(pendingNoteToSave).catch((err) => {
-        console.error('Error crítico persistiendo nota:', err);
-      });
-    }
-    pendingNoteToSave = null;
-  }
-};
-
-export const debouncedSaveNote = (note: Note) => {
-  if (isNoteEmpty(note)) {
-    pendingNoteToSave = null;
-    return;
-  }
-  pendingNoteToSave = note;
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
-  saveTimeout = setTimeout(() => {
-    flushPendingSave();
-  }, 400);
-};
+export { isNoteEmpty, flushPendingSave, debouncedSaveNote };
 
 export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
   notes: [],
@@ -77,49 +46,43 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
         }
       }
 
-      let notes = (rawNotes || []).filter((n) => !isNoteEmpty(n) || !!n.deletedAt);
+      // Purgar notas vacías históricas de la base de datos y de la papelera
+      const emptyNotes = (rawNotes || []).filter((n) => isNoteEmpty(n));
+      for (const empty of emptyNotes) {
+        noteRepository.delete(empty.id).catch(console.error);
+      }
+
+      let notes = (rawNotes || []).filter((n) => !isNoteEmpty(n));
       const activeNotes = notes.filter((n) => !n.deletedAt);
 
-      if (activeNotes.length === 0) {
+      if (activeNotes.length === 0 && !localStorage.getItem('notas_app_seeded_v1')) {
+        localStorage.setItem('notas_app_seeded_v1', 'true');
         notes = [...DEFAULT_NOTES, ...notes.filter((n) => !!n.deletedAt)];
         for (const n of DEFAULT_NOTES) {
           await noteRepository.save(n);
         }
       }
 
-      const quickInitialNote: Note = {
-        id: `note-quick-${Date.now()}`,
-        title: '',
-        content: '<p></p>',
-        updatedAt: Date.now(),
-        status: 'planned',
-      };
+      const initialActiveId = activeNotes[0]?.id || notes[0]?.id || '';
 
       set({
-        notes: [quickInitialNote, ...notes],
+        notes,
         folders,
         boardCards: rawBoardCards || [],
         standaloneTasks: rawStandaloneTasks || [],
         activeFolderId: null,
-        activeNoteId: quickInitialNote.id,
-        openNoteIds: [quickInitialNote.id],
+        activeNoteId: initialActiveId,
+        openNoteIds: initialActiveId ? [initialActiveId] : [],
         isLoading: false,
       });
     } catch (err) {
       console.error('Error cargando notas en el store:', err);
-      const quickInitialNote: Note = {
-        id: `note-quick-${Date.now()}`,
-        title: '',
-        content: '<p></p>',
-        updatedAt: Date.now(),
-        status: 'planned',
-      };
       set({
-        notes: [quickInitialNote, ...DEFAULT_NOTES],
+        notes: [],
         folders: DEFAULT_FOLDERS,
         activeFolderId: null,
-        activeNoteId: quickInitialNote.id,
-        openNoteIds: [quickInitialNote.id],
+        activeNoteId: '',
+        openNoteIds: [],
         isLoading: false,
       });
     }
@@ -192,7 +155,7 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
 
   openExistingNoteInTab: (noteId: string) => {
     get().selectNote(noteId);
-    set({ isAddModalOpen: false, activeNav: 'home' });
+    set({ isAddModalOpen: false, activeNav: 'notes' });
   },
 
   openNoteTab: (noteId: string) => {
@@ -201,10 +164,10 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
       set({
         openNoteIds: [...openNoteIds, noteId],
         activeNoteId: noteId,
-        activeNav: 'home',
+        activeNav: 'notes',
       });
     } else {
-      set({ activeNoteId: noteId, activeNav: 'home' });
+      set({ activeNoteId: noteId, activeNav: 'notes' });
     }
   },
 
@@ -304,16 +267,37 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
   createNote: async (folderId?: string, status?: NoteStatus) => {
     flushPendingSave();
     const { notes, activeNoteId, openNoteIds, splitView, activePane, activeFolderId } = get();
+    const targetFolder = folderId !== undefined ? folderId : (activeFolderId || undefined);
 
+    // Si la nota activa actual ya está vacía y sin guardar, reutilizarla sin duplicar
+    const currentActive = notes.find((n) => n.id === activeNoteId);
+    if (currentActive && isNoteEmpty(currentActive)) {
+      if (currentActive.folderId !== targetFolder) {
+        const updated = { ...currentActive, folderId: targetFolder, updatedAt: Date.now() };
+        set({
+          notes: notes.map((n) => (n.id === currentActive.id ? updated : n)),
+          activeNav: 'notes',
+          isAddModalOpen: false,
+          mobileView: 'editor',
+        });
+      } else {
+        set({
+          activeNav: 'notes',
+          isAddModalOpen: false,
+          mobileView: 'editor',
+        });
+      }
+      return currentActive.id;
+    }
+
+    // Filtrar y descartar permanentemente notas vacías no guardadas previas
     const remainingNotes = notes.filter((n) => {
-      if (n.id === activeNoteId && isNoteEmpty(n)) {
+      if (isNoteEmpty(n)) {
         noteRepository.delete(n.id).catch(console.error);
         return false;
       }
       return true;
     });
-
-    const targetFolder = folderId !== undefined ? folderId : (activeFolderId || undefined);
 
     const newNote: Note = {
       id: `note-${Date.now()}`,
@@ -324,8 +308,8 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
       status: status || 'planned',
     };
 
-    const remainingOpenIds = openNoteIds.filter(
-      (id) => id !== activeNoteId || remainingNotes.some((n) => n.id === id)
+    const remainingOpenIds = openNoteIds.filter((id) =>
+      remainingNotes.some((n) => n.id === id)
     );
 
     if (splitView && activePane === 'right') {
@@ -333,7 +317,7 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
         notes: [newNote, ...remainingNotes],
         secondaryNoteId: newNote.id,
         openNoteIds: [...remainingOpenIds.filter((id) => id !== newNote.id), newNote.id],
-        activeNav: 'home',
+        activeNav: 'notes',
         isAddModalOpen: false,
         mobileView: 'editor',
       });
@@ -342,7 +326,7 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
         notes: [newNote, ...remainingNotes],
         activeNoteId: newNote.id,
         openNoteIds: [...remainingOpenIds.filter((id) => id !== newNote.id), newNote.id],
-        activeNav: 'home',
+        activeNav: 'notes',
         isAddModalOpen: false,
         mobileView: 'editor',
       });
@@ -393,6 +377,33 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
       const target = notes.find((n) => n.id === noteId);
       if (!target) return;
 
+      // Si la nota está vacía o nunca fue guardada, destruirla permanentemente.
+      // NUNCA enviar notas vacías a la papelera.
+      if (isNoteEmpty(target)) {
+        await noteRepository.delete(noteId).catch(console.error);
+        const updatedNotes = notes.filter((n) => n.id !== noteId);
+        const updatedOpenIds = openNoteIds.filter((id) => id !== noteId);
+        const nonDeleted = updatedNotes.filter((n) => !n.deletedAt);
+
+        let nextActiveId = activeNoteId;
+        if (activeNoteId === noteId) {
+          nextActiveId = updatedOpenIds.length > 0
+            ? updatedOpenIds[0]
+            : (nonDeleted.length > 0 ? nonDeleted[0].id : '');
+        }
+
+        set({
+          notes: updatedNotes,
+          activeNoteId: nextActiveId,
+          openNoteIds: updatedOpenIds.length > 0
+            ? updatedOpenIds
+            : (nextActiveId ? [nextActiveId] : []),
+          splitView: updatedOpenIds.length < 2 ? false : get().splitView,
+        });
+        return;
+      }
+
+      // Solo notas con contenido real van a la papelera (soft-delete):
       const updatedNote: Note = { ...target, deletedAt: Date.now(), updatedAt: Date.now() };
       await noteRepository.save(updatedNote);
 
@@ -415,10 +426,6 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
           : (nextActiveId ? [nextActiveId] : []),
         splitView: updatedOpenIds.length < 2 ? false : get().splitView,
       });
-
-      if (nonDeleted.length === 0) {
-        await get().createNote();
-      }
     } catch (err) {
       console.error('Error eliminando nota:', err);
     }
