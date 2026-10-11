@@ -103,7 +103,15 @@ export class LocalStorageNoteRepository implements NoteRepository {
     } else {
       updated = [{ ...note, updatedAt: Date.now() }, ...notes];
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      if (err instanceof DOMException && (err.name === 'QuotaExceededError' || err.code === 22)) {
+        console.error('Límite de almacenamiento local alcanzado (QuotaExceededError):', err);
+        throw new Error('Almacenamiento del navegador lleno. Elimina notas o archivos pesados para continuar.');
+      }
+      throw err;
+    }
   }
 
   async delete(id: string): Promise<void> {

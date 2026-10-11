@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search, X, Calendar } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import type { NoteStatus } from '../../types';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -25,9 +25,23 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
   const [newCardDueDate, setNewCardDueDate] = useState<string>('');
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<NoteStatus | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDueOnly, setFilterDueOnly] = useState(false);
 
   const getCardsByStatus = (status: NoteStatus) => {
-    return boardCards.filter((c) => !c.deletedAt && c.status === status);
+    return boardCards.filter((c) => {
+      if (c.deletedAt || c.status !== status) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = c.title.toLowerCase().includes(q);
+        const matchesContent = (c.content || '').toLowerCase().includes(q);
+        if (!matchesTitle && !matchesContent) return false;
+      }
+      if (filterDueOnly && !c.dueDate) {
+        return false;
+      }
+      return true;
+    });
   };
 
   const isDateOverdue = (dateStr?: string) => {
@@ -307,8 +321,8 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
         }`}
       >
         {/* Cabecera de Tus tareas */}
-        <div className="p-4 sm:p-5 border-b border-app-border-subtle flex items-center justify-between bg-app-sidebar">
-          <div className="flex items-center gap-2.5">
+        <div className="p-3 sm:p-5 border-b border-app-border-subtle flex flex-wrap items-center justify-between gap-2.5 bg-app-sidebar">
+          <div className="flex items-center gap-2">
             <h2 className="text-xl sm:text-2xl font-bold text-app-text-primary tracking-tight">
               Tus tareas
             </h2>
@@ -317,19 +331,57 @@ export const NotesBoardView: React.FC<NotesBoardViewProps> = ({ onOpenNote }) =>
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setAddingInColumn('planned');
-              setNewCardTitle('');
-              setNewCardContent('');
-              setNewCardLinkedNoteId('');
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-app-action-primary-text bg-app-action-primary hover:opacity-90 rounded-xl transition-all shadow-sm leading-none"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
-            <span>Añadir Tarea</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Buscador de tareas rápido */}
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-app-text-secondary absolute left-2.5 pointer-events-none stroke-[2]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar tareas..."
+                className="w-28 sm:w-40 pl-8 pr-6 py-1.5 rounded-xl text-xs bg-app-canvas border border-app-border-subtle text-app-text-primary placeholder:text-app-text-secondary/60 focus:outline-none focus:ring-1 focus:ring-app-action-primary transition-all"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 text-app-text-secondary hover:text-app-text-primary"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Filtro con fecha de vencimiento */}
+            <button
+              type="button"
+              onClick={() => setFilterDueOnly((v) => !v)}
+              className={`p-1.5 rounded-xl border transition-colors ${
+                filterDueOnly
+                  ? 'bg-app-action-primary text-app-action-primary-text border-transparent shadow-xs'
+                  : 'bg-app-canvas border-app-border-subtle text-app-text-secondary hover:text-app-text-primary'
+              }`}
+              title={filterDueOnly ? 'Mostrar todas las tareas' : 'Filtrar solo tareas con fecha'}
+            >
+              <Calendar className="w-3.5 h-3.5 stroke-[2]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAddingInColumn('planned');
+                setNewCardTitle('');
+                setNewCardContent('');
+                setNewCardLinkedNoteId('');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-app-action-primary-text bg-app-action-primary hover:opacity-90 rounded-xl transition-all shadow-sm leading-none"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
+              <span>Añadir Tarea</span>
+            </button>
+          </div>
         </div>
 
         {/* Lista de Tus tareas */}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Sun, Moon, Database, FileText, Flame } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Sun, Moon, Database, FileText, Flame, Upload } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 interface SettingsModalProps {
@@ -8,9 +8,58 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { notes, theme, setTheme } = useAppStore();
+  const { notes, theme, setTheme, createNote, updateNote } = useAppStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const markdownToHtml = (md: string): string => {
+    const lines = md.split('\n');
+    return lines
+      .map((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return '<p></p>';
+        if (trimmed.startsWith('# ')) return `<h1>${trimmed.slice(2)}</h1>`;
+        if (trimmed.startsWith('## ')) return `<h2>${trimmed.slice(3)}</h2>`;
+        if (trimmed.startsWith('### ')) return `<h3>${trimmed.slice(4)}</h3>`;
+        if (trimmed.startsWith('- [x] ') || trimmed.startsWith('- [X] ')) {
+          return `<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><div><p>${trimmed.slice(6)}</p></div></li></ul>`;
+        }
+        if (trimmed.startsWith('- [ ] ')) {
+          return `<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><div><p>${trimmed.slice(6)}</p></div></li></ul>`;
+        }
+        if (trimmed.startsWith('- ')) {
+          return `<ul><li>${trimmed.slice(2)}</li></ul>`;
+        }
+        return `<p>${trimmed}</p>`;
+      })
+      .join('');
+  };
+
+  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    let importedCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const text = await file.text();
+        const title = file.name.replace(/\.(md|markdown|txt)$/i, '') || 'Nota importada';
+        const content = markdownToHtml(text);
+        const noteId = await createNote(undefined, 'planned');
+        updateNote(noteId, title, content);
+        importedCount++;
+      } catch (err) {
+        console.error('Error al importar nota:', file.name, err);
+      }
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setImportStatus(`${importedCount} nota(s) importada(s)`);
+    setTimeout(() => setImportStatus(null), 3000);
+  };
 
   const handleExportJSON = () => {
     const backupData = {
@@ -125,29 +174,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </div>
         </div>
 
-        {/* 2. Exportación Minimalista */}
-        <div className="p-4 pt-0 space-y-2">
-          <span className="text-xs font-medium text-app-text-secondary">
-            Exportar datos
-          </span>
-          <div className="grid grid-cols-2 gap-2">
+        {/* 2. Respaldo, Importación y Exportación */}
+        <div className="p-4 pt-0 space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-app-text-secondary">
+                Importar notas
+              </span>
+              {importStatus && (
+                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in">
+                  ✓ {importStatus}
+                </span>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".md,.markdown,.txt"
+              onChange={handleImportFiles}
+              className="hidden"
+            />
             <button
               type="button"
-              onClick={handleExportJSON}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-app-border-subtle bg-app-canvas hover:bg-app-active-pill text-app-text-primary text-xs font-medium transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-app-border-subtle bg-app-canvas hover:bg-app-active-pill text-app-text-primary text-xs font-medium transition-colors"
             >
-              <Database className="w-3.5 h-3.5 text-app-text-secondary" />
-              <span>JSON</span>
+              <Upload className="w-3.5 h-3.5 text-app-text-secondary" />
+              <span>Importar archivos Markdown (.md, .txt)</span>
             </button>
+          </div>
 
-            <button
-              type="button"
-              onClick={handleExportMarkdown}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-app-border-subtle bg-app-canvas hover:bg-app-active-pill text-app-text-primary text-xs font-medium transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5 text-app-text-secondary" />
-              <span>Markdown</span>
-            </button>
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-app-text-secondary">
+              Exportar datos
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleExportJSON}
+                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-app-border-subtle bg-app-canvas hover:bg-app-active-pill text-app-text-primary text-xs font-medium transition-colors"
+              >
+                <Database className="w-3.5 h-3.5 text-app-text-secondary" />
+                <span>JSON</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-app-border-subtle bg-app-canvas hover:bg-app-active-pill text-app-text-primary text-xs font-medium transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5 text-app-text-secondary" />
+                <span>Markdown</span>
+              </button>
+            </div>
           </div>
         </div>
 

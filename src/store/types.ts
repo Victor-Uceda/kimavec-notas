@@ -1,6 +1,16 @@
 import type { StateCreator } from 'zustand';
 import type { Note, NavigationItem, Folder, NoteStatus, TaskPriority, BoardCard, Task, Theme } from '../types';
 
+export interface ConfirmModalOptions {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDestructive?: boolean;
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
 export interface UiState {
   activeNav: NavigationItem;
   isAddModalOpen: boolean;
@@ -13,6 +23,7 @@ export interface UiState {
   mobileView: 'list' | 'editor';
   isSidebarOpen: boolean;
   sidebarWidth: number;
+  confirmModal: (ConfirmModalOptions & { isOpen: boolean }) | null;
 }
 
 export interface UiActions {
@@ -28,6 +39,8 @@ export interface UiActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  showConfirm: (options: ConfirmModalOptions) => void;
+  closeConfirm: () => void;
 }
 
 export type UiSlice = UiState & UiActions;

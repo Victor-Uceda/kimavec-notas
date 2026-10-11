@@ -11,6 +11,7 @@ import { FolderEmptyState } from './features/folders/FolderEmptyState';
 import { NotesBoardView } from './features/board/NotesBoardView';
 import { TrashModal } from './features/trash/TrashModal';
 import { HomeQuickNoteView } from './features/notes/HomeQuickNoteView';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useAppStore } from './store/useAppStore';
 import { flushPendingSave } from './services/storage/noteSaveManager';
 
@@ -32,6 +33,7 @@ export default function App() {
     loadNotes,
     selectNote,
     closeNoteTab,
+    closeAllTabs,
     createNote,
     deleteNote,
     updateNote,
@@ -45,6 +47,7 @@ export default function App() {
     setSidebarOpen,
     sidebarWidth,
     setSidebarWidth,
+    showConfirm,
   } = useAppStore();
 
   const [isDraggingDivider, setIsDraggingDivider] = useState(false);
@@ -120,17 +123,30 @@ export default function App() {
     };
   }, []);
 
-  // Atajo global Ctrl+\ o Cmd+\ para colapsar/expandir barra lateral
+  // Atajos globales de teclado: Ctrl+\ (sidebar), Ctrl+N (crear nota), Ctrl+W (cerrar pestaña)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      if (isCmdOrCtrl && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        createNote();
+        setNav('notes');
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          closeAllTabs();
+        } else if (activeNoteId) {
+          closeNoteTab(activeNoteId);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, createNote, setNav, closeNoteTab, closeAllTabs, activeNoteId]);
 
   const activeNotes = useMemo(() => {
     return notes.filter((n) => !n.deletedAt);
@@ -255,9 +271,13 @@ export default function App() {
                           onChangeContent={(content) => updateNote(activeNote.id, activeNote.title, content)}
                           onClose={() => closeNoteTab(activeNote.id)}
                           onDeleteNote={() => {
-                            if (window.confirm(`¿Eliminar la nota "${activeNote.title || 'sin título'}"?`)) {
-                              deleteNote(activeNote.id);
-                            }
+                            showConfirm({
+                              title: 'Enviar a la papelera',
+                              message: `¿Deseas enviar la nota "${activeNote.title || 'sin título'}" a la papelera?`,
+                              confirmText: 'Enviar a papelera',
+                              isDestructive: true,
+                              onConfirm: () => deleteNote(activeNote.id),
+                            });
                           }}
                         />
                       </div>
@@ -277,9 +297,13 @@ export default function App() {
                             onChangeContent={(content) => updateNote(secondaryNote.id, secondaryNote.title, content)}
                             onClose={() => closeNoteTab(secondaryNote.id)}
                             onDeleteNote={() => {
-                              if (window.confirm(`¿Eliminar la nota "${secondaryNote.title || 'sin título'}"?`)) {
-                                deleteNote(secondaryNote.id);
-                              }
+                              showConfirm({
+                                title: 'Enviar a la papelera',
+                                message: `¿Deseas enviar la nota "${secondaryNote.title || 'sin título'}" a la papelera?`,
+                                confirmText: 'Enviar a papelera',
+                                isDestructive: true,
+                                onConfirm: () => deleteNote(secondaryNote.id),
+                              });
                             }}
                           />
                         </div>
@@ -310,6 +334,7 @@ export default function App() {
       />
       <OpenOrCreateModal />
       <TrashModal />
+      <ConfirmDialog />
 
       {/* Banner de error de persistencia (docs/04-code-standards.md 48.7) */}
       {persistenceError && (

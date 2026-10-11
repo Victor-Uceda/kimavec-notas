@@ -10,8 +10,10 @@ import {
   Trash2,
   CheckSquare,
   Columns2,
+  Download,
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { exportSingleNoteMarkdown } from '../../utils/markdownUtils';
 
 export const NoteTabsBar: React.FC = () => {
   const {
@@ -30,9 +32,9 @@ export const NoteTabsBar: React.FC = () => {
     isSidebarOpen,
     toggleSidebar,
     setMobileView,
-    setNav,
     moveNoteToFolder,
     deleteNote,
+    showConfirm,
   } = useAppStore();
 
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -87,15 +89,29 @@ export const NoteTabsBar: React.FC = () => {
     return { words, chars, readingTime };
   }, [activeNote]);
 
+  // Backlinks: notas que enlazan a la nota actual mediante [[Título]]
+  const backlinks = useMemo(() => {
+    if (!activeNote || !activeNote.title?.trim()) return [];
+    const titleEscaped = activeNote.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\[\\[${titleEscaped}(\\]\\]|\\|)`, 'i');
+    return notes.filter(
+      (n) => !n.deletedAt && n.id !== activeNote.id && regex.test(n.content || '')
+    );
+  }, [notes, activeNote]);
+
   if (activeOpenNoteIds.length === 0 && !activeNoteId) {
     return null;
   }
 
   const handleDeleteActiveNote = () => {
     if (!activeNote) return;
-    if (window.confirm(`¿Eliminar la nota "${activeNote.title || 'sin título'}"?`)) {
-      deleteNote(activeNote.id);
-    }
+    showConfirm({
+      title: 'Enviar a la papelera',
+      message: `¿Deseas enviar la nota "${activeNote.title || 'sin título'}" a la papelera?`,
+      confirmText: 'Enviar a papelera',
+      isDestructive: true,
+      onConfirm: () => deleteNote(activeNote.id),
+    });
   };
 
   return (
@@ -243,14 +259,14 @@ export const NoteTabsBar: React.FC = () => {
         {/* 3. Iconos de acción de la nota activa (todos interactivos y 100% operativos) */}
         {activeNote && (
           <div className="flex items-center gap-0.5">
-            {/* Ver en grafo */}
+            {/* Exportar nota individual en Markdown */}
             <button
               type="button"
-              onClick={() => setNav('canvas')}
+              onClick={() => exportSingleNoteMarkdown(activeNote)}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              title="Ver conexiones en grafo"
+              title="Exportar esta nota en Markdown (.md)"
             >
-              <FileText className="w-4 h-4 stroke-[1.8]" />
+              <Download className="w-3.5 h-3.5 stroke-[2]" />
             </button>
 
             {/* Información de la nota (i) */}
@@ -266,16 +282,28 @@ export const NoteTabsBar: React.FC = () => {
                     ? 'bg-black/10 dark:bg-white/15 text-app-text-primary'
                     : 'text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10'
                 }`}
-                title="Información de la nota"
+                title="Información de la nota y conexiones"
               >
                 <Info className="w-4 h-4 stroke-[1.8]" />
               </button>
 
               {showInfoModal && (
-                <div className="absolute right-0 top-full mt-1.5 bg-app-editor dark:bg-[#18181b] border border-app-border-subtle rounded-2xl shadow-2xl p-4 w-64 z-50 text-app-text-primary backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100">
-                  <h4 className="text-xs font-bold text-app-text-primary mb-2.5 pb-1.5 border-b border-app-border-subtle">
-                    Detalles de la nota
-                  </h4>
+                <div className="absolute right-0 top-full mt-1.5 bg-app-editor dark:bg-[#18181b] border border-app-border-subtle rounded-2xl shadow-2xl p-4 w-72 z-50 text-app-text-primary backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-app-border-subtle">
+                    <h4 className="text-xs font-bold text-app-text-primary">
+                      Detalles de la nota
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => exportSingleNoteMarkdown(activeNote)}
+                      className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      title="Descargar archivo Markdown"
+                    >
+                      <Download className="w-3 h-3 stroke-[2]" />
+                      <span>.md</span>
+                    </button>
+                  </div>
+
                   <div className="space-y-2 text-xs text-app-text-secondary">
                     <div className="flex items-center justify-between">
                       <span>Palabras:</span>
@@ -300,6 +328,37 @@ export const NoteTabsBar: React.FC = () => {
                         <span>Modificado: {new Date(activeNote.updatedAt).toLocaleDateString()}</span>
                       </div>
                     )}
+
+                    {/* Backlinks / Conexiones sinápticas entrantes */}
+                    <div className="pt-2.5 border-t border-app-border-subtle">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-semibold text-app-text-primary">
+                          🔗 Menciones ({backlinks.length})
+                        </span>
+                      </div>
+                      {backlinks.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto no-scrollbar">
+                          {backlinks.map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                selectNote(b.id);
+                                setShowInfoModal(false);
+                              }}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-app-canvas text-app-text-primary hover:bg-app-active-pill truncate max-w-[220px] border border-app-border-subtle transition-colors text-left"
+                              title={`Abrir nota "${b.title || 'Sin título'}"`}
+                            >
+                              {b.title || 'Sin título'}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-app-text-secondary/70 italic">
+                          Ninguna otra nota enlaza a esta nota
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

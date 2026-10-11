@@ -20,6 +20,7 @@ export const TrashModal: React.FC = () => {
     restoreStandaloneTask,
     deleteStandaloneTaskPermanently,
     emptyTrash,
+    showConfirm,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<TrashTab>('notes');
@@ -69,12 +70,18 @@ export const TrashModal: React.FC = () => {
     setFeedbackToast(msg);
   };
 
-  const handleEmptyTrash = async () => {
+  const handleEmptyTrash = () => {
     if (totalTrashedCount === 0) return;
-    if (window.confirm('¿Vaciar toda la papelera permanentemente? Esta acción no se puede deshacer.')) {
-      await emptyTrash();
-      showToast('Papelera vaciada por completo');
-    }
+    showConfirm({
+      title: 'Vaciar papelera',
+      message: '¿Vaciar toda la papelera permanentemente? Esta acción no se puede deshacer.',
+      confirmText: 'Vaciar papelera',
+      isDestructive: true,
+      onConfirm: async () => {
+        await emptyTrash();
+        showToast('Papelera vaciada por completo');
+      },
+    });
   };
 
   const formatDate = (timestamp?: number) => {
@@ -241,11 +248,17 @@ export const TrashModal: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (window.confirm(`¿Eliminar definitivamente "${note.title || 'sin título'}"?`)) {
-                              await deleteNotePermanently(note.id);
-                              showToast('Nota eliminada definitivamente');
-                            }
+                          onClick={() => {
+                            showConfirm({
+                              title: 'Eliminar definitivamente',
+                              message: `¿Eliminar permanentemente "${note.title || 'sin título'}"? Esta acción no se puede deshacer.`,
+                              confirmText: 'Eliminar',
+                              isDestructive: true,
+                              onConfirm: async () => {
+                                await deleteNotePermanently(note.id);
+                                showToast('Nota eliminada definitivamente');
+                              },
+                            });
                           }}
                           className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"
@@ -306,11 +319,17 @@ export const TrashModal: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (window.confirm(`¿Eliminar definitivamente la carpeta "${folder.name}"?`)) {
-                            await deleteFolderPermanently(folder.id);
-                            showToast('Carpeta eliminada definitivamente');
-                          }
+                        onClick={() => {
+                          showConfirm({
+                            title: 'Eliminar definitivamente',
+                            message: `¿Eliminar permanentemente la carpeta "${folder.name}"? Esta acción no se puede deshacer.`,
+                            confirmText: 'Eliminar',
+                            isDestructive: true,
+                            onConfirm: async () => {
+                              await deleteFolderPermanently(folder.id);
+                              showToast('Carpeta eliminada definitivamente');
+                            },
+                          });
                         }}
                         className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                         title="Eliminar definitivamente"
@@ -374,11 +393,17 @@ export const TrashModal: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (window.confirm(`¿Eliminar definitivamente "${task.title}"?`)) {
-                              await deleteStandaloneTaskPermanently(task.id);
-                              showToast('Tarea eliminada definitivamente');
-                            }
+                          onClick={() => {
+                            showConfirm({
+                              title: 'Eliminar definitivamente',
+                              message: `¿Eliminar permanentemente la tarea "${task.title}"? Esta acción no se puede deshacer.`,
+                              confirmText: 'Eliminar',
+                              isDestructive: true,
+                              onConfirm: async () => {
+                                await deleteStandaloneTaskPermanently(task.id);
+                                showToast('Tarea eliminada definitivamente');
+                              },
+                            });
                           }}
                           className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"
@@ -432,11 +457,17 @@ export const TrashModal: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (window.confirm(`¿Eliminar definitivamente "${card.title || 'sin título'}"?`)) {
-                              await deleteBoardCardPermanently(card.id);
-                              showToast('Tarjeta eliminada definitivamente');
-                            }
+                          onClick={() => {
+                            showConfirm({
+                              title: 'Eliminar definitivamente',
+                              message: `¿Eliminar permanentemente la tarjeta "${card.title || 'sin título'}"? Esta acción no se puede deshacer.`,
+                              confirmText: 'Eliminar',
+                              isDestructive: true,
+                              onConfirm: async () => {
+                                await deleteBoardCardPermanently(card.id);
+                                showToast('Tarjeta eliminada definitivamente');
+                              },
+                            });
                           }}
                           className="p-1.5 rounded-lg text-xs text-app-text-secondary hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Eliminar definitivamente"

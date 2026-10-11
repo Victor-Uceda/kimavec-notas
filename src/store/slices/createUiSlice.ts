@@ -127,4 +127,19 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     } catch {}
     set({ sidebarWidth: clamped });
   },
+
+  confirmModal: null,
+
+  showConfirm: (options) => {
+    set({
+      confirmModal: {
+        ...options,
+        isOpen: true,
+      },
+    });
+  },
+
+  closeConfirm: () => {
+    set({ confirmModal: null });
+  },
 });

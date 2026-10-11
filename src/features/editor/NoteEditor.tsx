@@ -8,11 +8,13 @@ import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
+import Image from '@tiptap/extension-image';
 import { CloudCheck } from 'lucide-react';
 import { EditorToolbar } from './EditorToolbar';
 import { WikilinkAutocomplete } from './WikilinkAutocomplete';
 import { SmartPillsExtension } from './extensions/SmartPillsExtension';
 import { useAppStore } from '../../store/useAppStore';
+import { compressImageFile } from '../../utils/imageCompressor';
 import type { Note } from '../../types';
 
 const lowlight = createLowlight(common);
@@ -125,6 +127,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+      }),
       Placeholder.configure({
         placeholder: 'Escribe aquí tu nota (usa [[ para conectar notas)...',
       }),
@@ -180,6 +186,48 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           }
         }
 
+        return false;
+      },
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find((item) => item.type.startsWith('image/'));
+        if (imageItem) {
+          const file = imageItem.getAsFile();
+          if (file) {
+            compressImageFile(file)
+              .then((compressedSrc) => {
+                const node = view.state.schema.nodes.image?.create({ src: compressedSrc });
+                if (node) {
+                  view.dispatch(view.state.tr.replaceSelectionWith(node));
+                }
+              })
+              .catch(() => {
+                setConnectionToast('⚠️ Error procesando la imagen');
+              });
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files || []);
+        const imageFile = files.find((f) => f.type.startsWith('image/'));
+        if (imageFile) {
+          event.preventDefault();
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          const pos = coords ? coords.pos : view.state.selection.from;
+          compressImageFile(imageFile)
+            .then((compressedSrc) => {
+              const node = view.state.schema.nodes.image?.create({ src: compressedSrc });
+              if (node) {
+                view.dispatch(view.state.tr.insert(pos, node));
+              }
+            })
+            .catch(() => {
+              setConnectionToast('⚠️ Error procesando la imagen');
+            });
+          return true;
+        }
         return false;
       },
     },

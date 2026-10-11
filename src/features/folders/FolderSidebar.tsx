@@ -28,6 +28,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     deleteNote,
     setTrashOpen,
     toggleSidebar,
+    showConfirm,
   } = useAppStore();
 
   const [statusNotification, setStatusNotification] = useState<string | null>(null);
@@ -125,13 +126,19 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     notify('Carpeta renombrada');
   };
 
-  const handleDeleteFolder = async (folder: Folder, e: React.MouseEvent) => {
+  const handleDeleteFolder = (folder: Folder, e: React.MouseEvent) => {
     e.stopPropagation();
     setFolderMenuId(null);
-    if (window.confirm(`¿Enviar la carpeta "${folder.name}" a la papelera?`)) {
-      await deleteFolder(folder.id);
-      notify('Carpeta enviada a la papelera');
-    }
+    showConfirm({
+      title: 'Enviar carpeta a la papelera',
+      message: `¿Deseas enviar la carpeta "${folder.name}" a la papelera?`,
+      confirmText: 'Enviar a papelera',
+      isDestructive: true,
+      onConfirm: async () => {
+        await deleteFolder(folder.id);
+        notify('Carpeta enviada a la papelera');
+      },
+    });
   };
 
   const handleCreateNoteInActiveFolder = async () => {
