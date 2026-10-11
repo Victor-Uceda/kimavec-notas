@@ -55,3 +55,30 @@ export function exportSingleNoteMarkdown(note: Note): void {
   const content = `# ${title}\n\n${bodyMarkdown}\n`;
   downloadMarkdown(safeFilename, content);
 }
+
+/**
+ * Convierte texto Markdown básico a HTML estructurado compatible con TipTap.
+ */
+export function markdownToHtml(md: string): string {
+  if (!md) return '<p></p>';
+  const lines = md.split('\n');
+  return lines
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return '<p></p>';
+      if (trimmed.startsWith('# ')) return `<h1>${trimmed.slice(2)}</h1>`;
+      if (trimmed.startsWith('## ')) return `<h2>${trimmed.slice(3)}</h2>`;
+      if (trimmed.startsWith('### ')) return `<h3>${trimmed.slice(4)}</h3>`;
+      if (trimmed.startsWith('- [x] ') || trimmed.startsWith('- [X] ')) {
+        return `<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><div><p>${trimmed.slice(6)}</p></div></li></ul>`;
+      }
+      if (trimmed.startsWith('- [ ] ')) {
+        return `<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><div><p>${trimmed.slice(6)}</p></div></li></ul>`;
+      }
+      if (trimmed.startsWith('- ')) {
+        return `<ul><li>${trimmed.slice(2)}</li></ul>`;
+      }
+      return `<p>${trimmed}</p>`;
+    })
+    .join('');
+}

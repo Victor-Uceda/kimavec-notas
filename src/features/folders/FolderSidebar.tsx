@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, PanelLeftClose } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Plus, PanelLeftClose, Upload } from 'lucide-react';
 import { useAppStore, isNoteEmpty } from '../../store/useAppStore';
+import { markdownToHtml } from '../../utils/markdownUtils';
 import type { Folder, Note } from '../../types';
 
 interface FolderSidebarProps {
@@ -25,6 +26,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     moveFolder,
     moveNoteToFolder,
     createNote,
+    updateNote,
     deleteNote,
     setTrashOpen,
     toggleSidebar,
@@ -32,6 +34,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   } = useAppStore();
 
   const [statusNotification, setStatusNotification] = useState<string | null>(null);
+  const [isDraggingFilesOverSidebar, setIsDraggingFilesOverSidebar] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // Estados para crear o renombrar carpeta
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -77,6 +81,46 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const notify = (msg: string) => {
     setStatusNotification(msg);
     setTimeout(() => setStatusNotification(null), 2400);
+  };
+
+  const importFileList = async (files: FileList | File[], targetFolderId?: string) => {
+    let importedCount = 0;
+    let lastNoteId: string | undefined;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.name.match(/\.(md|markdown|txt)$/i)) continue;
+
+      try {
+        const text = await file.text();
+        const title = file.name.replace(/\.(md|markdown|txt)$/i, '') || 'Nota importada';
+        const content = markdownToHtml(text);
+        const noteId = await createNote(targetFolderId, 'planned');
+        updateNote(noteId, title, content);
+        lastNoteId = noteId;
+        importedCount++;
+      } catch (err) {
+        console.error('Error al importar archivo:', file.name, err);
+      }
+    }
+
+    if (importedCount > 0) {
+      notify(`${importedCount} nota(s) importada(s)`);
+      if (lastNoteId) {
+        onSelectNote(lastNoteId);
+      }
+    } else {
+      notify('No se encontraron archivos .md o .txt válidos');
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      importFileList(e.target.files, activeFolderId || undefined);
+    }
+    if (importInputRef.current) {
+      importInputRef.current.value = '';
+    }
   };
 
   const handleOpenCreateFolder = (defaultParentId?: string | null) => {
@@ -331,6 +375,11 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               setDragOverFolderId(null);
+              const files = e.dataTransfer.files;
+              if (files && files.length > 0) {
+                importFileList(files, folder.id);
+                return;
+              }
               const noteId = e.dataTransfer.getData('text/plain');
               if (noteId) {
                 moveNoteToFolder(noteId, folder.id);
@@ -599,8 +648,42 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   };
 
   return (
-    <aside className="w-full h-full bg-app-sidebar flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative">
-      {/* Cabecera superior limpia: Notas + botón Crear Carpeta */}
+    <aside
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          if (!isDraggingFilesOverSidebar) setIsDraggingFilesOverSidebar(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsDraggingFilesOverSidebar(false);
+        }
+      }}
+      onDrop={(e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          setIsDraggingFilesOverSidebar(false);
+          importFileList(e.dataTransfer.files, activeFolderId || undefined);
+        }
+      }}
+      className="w-full h-full bg-app-sidebar flex flex-col shrink-0 select-none overflow-hidden text-app-text-primary relative"
+    >
+      {/* Overlay al arrastrar archivos Markdown sobre el sidebar */}
+      {isDraggingFilesOverSidebar && (
+        <div className="absolute inset-0 z-50 bg-blue-500/10 dark:bg-blue-500/20 backdrop-blur-xs border-2 border-dashed border-blue-500 rounded-xl m-2 flex flex-col items-center justify-center p-4 text-center pointer-events-none animate-in fade-in duration-150">
+          <Upload className="w-8 h-8 text-blue-500 mb-2 animate-bounce" />
+          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+            Suelta tus archivos .md aquí
+          </span>
+          <span className="text-[11px] text-app-text-secondary mt-0.5">
+            Se importarán a {activeFolderId ? 'la carpeta actual' : 'tus notas'}
+          </span>
+        </div>
+      )}
+
+      {/* Cabecera superior limpia: Notas + botón Importar + botón Crear Carpeta */}
       <div className="p-3.5 border-b border-app-border-subtle flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-panel-title font-bold text-app-text-primary tracking-tight">
@@ -609,6 +692,25 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Botón rápido para importar Markdown */}
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-app-text-secondary hover:text-app-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            title="Importar notas Markdown (.md, .txt)"
+            aria-label="Importar notas Markdown"
+          >
+            <Upload className="w-3.5 h-3.5 stroke-[2]" />
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            multiple
+            accept=".md,.markdown,.txt"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+
           {/* Botón superior "+ Crear carpeta" */}
           <button
             type="button"
@@ -707,6 +809,11 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           onDrop={(e) => {
             e.preventDefault();
             setDragOverFolderId(null);
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              importFileList(files, undefined);
+              return;
+            }
             const noteId = e.dataTransfer.getData('text/plain');
             if (noteId) {
               moveNoteToFolder(noteId, undefined);
